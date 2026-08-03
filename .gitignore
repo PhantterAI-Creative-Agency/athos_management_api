@@ -1,0 +1,57 @@
+# ============================================
+# Athos Management API — .gitignore 
+# ============================================
+
+# === Package Lock ===
+**/package-lock.json
+**/yarn.lock
+
+# === Dependências ===
+node_modules/
+
+# === Build / Output ===
+dist/
+build/
+.next/
+out/
+web-build/
+.expo/
+
+# === Cobertura de testes ===
+coverage/
+
+# === Variáveis de ambiente ===
+.env
+.env.*
+!.env.example
+
+# === Logs ===
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.pnpm-debug.log*
+
+# === SO ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === Vercel ===
+.vercel
+
+# === Yarn ===
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# === API ===
+**/scripts/
+
+# === Claude Code / Agents ===
+# .claude/
+# CLAUDE.md
+# .playwright-mcp/
+

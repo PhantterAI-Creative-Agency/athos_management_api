@@ -1,0 +1,14 @@
+import type { Response } from "express";
+
+export function sendSuccess<T>(res: Response, data: T, status = 200): Response {
+  return res.status(status).json({ data });
+}
+
+export function sendError(
+  res: Response,
+  status: number,
+  code: string,
+  message: string,
+): Response {
+  return res.status(status).json({ error: { code, message } });
+}

@@ -1,0 +1,48 @@
+import { Router } from "express";
+import authRoutes from "./auth.routes";
+import eventsRoutes from "./events.routes";
+import churchesRoutes from "./churches.routes";
+import usersRoutes from "./users.routes";
+import ministriesRoutes from "./ministries.routes";
+import growthGroupsRoutes from "./growthGroups.routes";
+import offeringsRoutes from "./offerings.routes";
+import paymentsRoutes from "./payments.routes";
+import muralRoutes from "./mural.routes";
+import mediaRoutes from "./media.routes";
+import devotionalsRoutes from "./devotionals.routes";
+import friendsRoutes from "./friends.routes";
+import highlightsRoutes from "./highlights.routes";
+import notificationsRoutes from "./notifications.routes";
+import checkinRoutes from "./checkin.routes";
+import plansRoutes from "./plans.routes";
+import badgesRoutes from "./badges.routes";
+import bibleRoutes from "./bible.routes";
+import publicRoutes from "./public.routes";
+import aiChatRoutes from "./aiChat.routes";
+import pastoralCareRoutes from "./pastoralCare.routes";
+
+const router = Router();
+
+router.use("/public", publicRoutes);
+router.use("/auth", authRoutes);
+router.use("/events", eventsRoutes);
+router.use("/churches", churchesRoutes);
+router.use("/users", usersRoutes);
+router.use("/ministries", ministriesRoutes);
+router.use("/growth-groups", growthGroupsRoutes);
+router.use("/offerings", offeringsRoutes);
+router.use("/payments", paymentsRoutes);
+router.use("/mural", muralRoutes);
+router.use("/media", mediaRoutes);
+router.use("/devotionals", devotionalsRoutes);
+router.use("/friends", friendsRoutes);
+router.use("/highlights", highlightsRoutes);
+router.use("/plans", plansRoutes);
+router.use("/checkin", checkinRoutes);
+router.use("/bible", bibleRoutes);
+router.use("/badges", badgesRoutes);
+router.use("/notifications", notificationsRoutes);
+router.use("/ai-chat", aiChatRoutes);
+router.use("/pastoral-care", pastoralCareRoutes);
+
+export default router;
