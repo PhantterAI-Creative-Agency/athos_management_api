@@ -25,3 +25,4 @@ function buildLimiter(windowMs: number, max: number) {
 }
 
 export const authLimiter = buildLimiter(15 * 60 * 1000, 10);
+export const contactLimiter = buildLimiter(15 * 60 * 1000, 5);

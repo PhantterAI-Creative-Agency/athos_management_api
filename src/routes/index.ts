@@ -20,10 +20,12 @@ import bibleRoutes from "./bible.routes";
 import publicRoutes from "./public.routes";
 import aiChatRoutes from "./aiChat.routes";
 import pastoralCareRoutes from "./pastoralCare.routes";
+import contactRoutes from "./contact.routes";
 
 const router = Router();
 
 router.use("/public", publicRoutes);
+router.use("/contact", contactRoutes);
 router.use("/auth", authRoutes);
 router.use("/events", eventsRoutes);
 router.use("/churches", churchesRoutes);

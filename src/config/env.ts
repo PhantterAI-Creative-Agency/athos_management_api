@@ -26,6 +26,9 @@ const envSchema = z.object({
   OPENROUTER_API_KEY: z.string().optional(),
   OPENROUTER_MODEL: z.string().default("deepseek/deepseek-chat"),
   OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
+  GMAIL_APP_NAME: z.string().optional(),
+  GMAIL_APP_MAIL: z.string().optional(),
+  GMAIL_APP_PASSWORD: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
