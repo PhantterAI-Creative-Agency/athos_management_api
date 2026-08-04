@@ -7,6 +7,7 @@ const ministrySchema = new Schema(
     iconUrl: { type: String },
     contractRequired: { type: Boolean, default: false },
     participantsCount: { type: Number, default: 0 },
+    leader: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );

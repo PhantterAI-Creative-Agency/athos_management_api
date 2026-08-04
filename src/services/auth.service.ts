@@ -1,4 +1,5 @@
 import { User } from "../models/User.model";
+import { Ministry } from "../models/Ministry.model";
 import { comparePassword, hashPassword } from "../helpers/password.helper";
 import {
   signAccessToken,
@@ -23,19 +24,25 @@ function buildPayload(user: {
   };
 }
 
-function toAuthenticatedUser(user: {
+async function toAuthenticatedUser(user: {
   _id: unknown;
   churchId: unknown;
   name: string;
   email?: string | null;
   roles: string[];
-}): AuthenticatedUserDTO {
+}): Promise<AuthenticatedUserDTO> {
+  const ledMinistries = await Ministry.find({
+    leader: String(user._id),
+    churchId: String(user.churchId),
+  }).select("_id");
+
   return {
     id: String(user._id),
     churchId: String(user.churchId),
     name: user.name,
     email: user.email as string,
     roles: user.roles as Role[],
+    leaderMinistryIds: ledMinistries.map((ministry) => String(ministry._id)),
   };
 }
 
@@ -65,7 +72,7 @@ export async function login(email: string, password: string): Promise<LoginResul
 
   await tryLinkSpouse(user);
 
-  return { accessToken, refreshToken, user: toAuthenticatedUser(user) };
+  return { accessToken, refreshToken, user: await toAuthenticatedUser(user) };
 }
 
 export async function refresh(refreshToken: string): Promise<AuthTokensDTO> {

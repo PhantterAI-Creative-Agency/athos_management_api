@@ -11,6 +11,8 @@ import type {
   UpdateMinistryDTO,
 } from "../interfaces/ministry.interface";
 
+type PopulatedLeader = { _id: unknown; name: string };
+
 type MinistryDocumentLike = {
   _id: unknown;
   churchId: unknown;
@@ -18,6 +20,7 @@ type MinistryDocumentLike = {
   iconUrl?: string | null;
   contractRequired: boolean;
   participantsCount: number;
+  leader?: PopulatedLeader | unknown;
   createdAt: Date;
 };
 
@@ -32,6 +35,15 @@ type MinistryVolunteerDocumentLike = {
 };
 
 function toMinistryDTO(ministry: MinistryDocumentLike, isVolunteer: boolean): MinistryDTO {
+  const leader = ministry.leader;
+  const isPopulated = leader !== null && leader !== undefined && typeof leader === "object" && "_id" in leader;
+  const leaderId = isPopulated
+    ? String((leader as PopulatedLeader)._id)
+    : leader
+      ? String(leader)
+      : undefined;
+  const leaderName = isPopulated ? (leader as PopulatedLeader).name : undefined;
+
   return {
     id: String(ministry._id),
     churchId: String(ministry.churchId),
@@ -40,6 +52,8 @@ function toMinistryDTO(ministry: MinistryDocumentLike, isVolunteer: boolean): Mi
     contractRequired: ministry.contractRequired,
     participantsCount: ministry.participantsCount,
     isVolunteer,
+    leaderId,
+    leaderName,
     createdAt: ministry.createdAt.toISOString(),
   };
 }
@@ -65,7 +79,7 @@ function isAdmin(requester: AuthTokenPayload): boolean {
 }
 
 async function findMinistryScoped(requester: AuthTokenPayload, ministryId: string) {
-  const ministry = await Ministry.findById(ministryId);
+  const ministry = await Ministry.findById(ministryId).populate("leader", "name");
 
   if (!ministry) {
     throw new AppError(404, "MINISTRY_NOT_FOUND", "Ministério não encontrado");
@@ -78,15 +92,32 @@ async function findMinistryScoped(requester: AuthTokenPayload, ministryId: strin
   return ministry;
 }
 
+async function assertLeaderInChurch(leaderId: string, churchId: string): Promise<void> {
+  const leader = await User.findOne({ _id: leaderId, churchId });
+
+  if (!leader) {
+    throw new AppError(404, "LEADER_NOT_FOUND", "Usuário não encontrado");
+  }
+}
+
 export async function createMinistry(requester: AuthTokenPayload, data: CreateMinistryDTO): Promise<MinistryDTO> {
   const churchId = isDevAdmin(requester) && data.churchId ? data.churchId : requester.churchId;
+
+  if (data.leaderId) {
+    await assertLeaderInChurch(data.leaderId, churchId);
+  }
 
   const ministry = await Ministry.create({
     churchId,
     name: data.name,
     iconUrl: data.iconUrl,
     contractRequired: data.contractRequired ?? false,
+    leader: data.leaderId ?? null,
   });
+
+  if (data.leaderId) {
+    await ministry.populate("leader", "name");
+  }
 
   return toMinistryDTO(ministry, false);
 }
@@ -94,7 +125,9 @@ export async function createMinistry(requester: AuthTokenPayload, data: CreateMi
 export async function listMinistries(requester: AuthTokenPayload, highlightUserId?: string): Promise<MinistryDTO[]> {
   const targetUserId = highlightUserId ?? requester.sub;
 
-  const ministries = await Ministry.find({ churchId: requester.churchId }).sort({ name: 1 });
+  const ministries = await Ministry.find({ churchId: requester.churchId })
+    .sort({ name: 1 })
+    .populate("leader", "name");
 
   const activeVolunteerRecords = await MinistryVolunteer.find({
     userId: targetUserId,
@@ -133,7 +166,15 @@ export async function updateMinistry(
   if (data.iconUrl !== undefined) ministry.iconUrl = data.iconUrl;
   if (data.contractRequired !== undefined) ministry.contractRequired = data.contractRequired;
 
+  if (data.leaderId !== undefined) {
+    if (data.leaderId) {
+      await assertLeaderInChurch(data.leaderId, String(ministry.churchId));
+    }
+    ministry.leader = data.leaderId as unknown as typeof ministry.leader;
+  }
+
   await ministry.save();
+  await ministry.populate("leader", "name");
 
   const isVolunteer = await MinistryVolunteer.exists({
     ministryId,

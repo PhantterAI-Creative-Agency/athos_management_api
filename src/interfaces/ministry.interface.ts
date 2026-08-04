@@ -5,6 +5,7 @@ export const createMinistrySchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   iconUrl: z.string().optional(),
   contractRequired: z.boolean().optional(),
+  leaderId: z.string().nullable().optional(),
 });
 
 export type CreateMinistryDTO = z.infer<typeof createMinistrySchema>;
@@ -13,6 +14,7 @@ export const updateMinistrySchema = z.object({
   name: z.string().min(1).optional(),
   iconUrl: z.string().optional(),
   contractRequired: z.boolean().optional(),
+  leaderId: z.string().nullable().optional(),
 });
 
 export type UpdateMinistryDTO = z.infer<typeof updateMinistrySchema>;
@@ -38,6 +40,8 @@ export interface MinistryDTO {
   contractRequired: boolean;
   participantsCount: number;
   isVolunteer: boolean;
+  leaderId?: string;
+  leaderName?: string;
   createdAt: string;
 }
 
