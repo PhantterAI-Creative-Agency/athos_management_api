@@ -2,7 +2,22 @@ import type { NextFunction, Request, Response } from "express";
 import * as churchesService from "../services/churches.service";
 import { sendSuccess } from "../helpers/response.helper";
 import { auditLog } from "../helpers/auditLogger.helper";
-import type { SearchChurchesQueryDTO, UpdateChurchDTO } from "../interfaces/church.interface";
+import type {
+  RegisterChurchDTO,
+  SearchChurchesQueryDTO,
+  UpdateChurchDTO,
+} from "../interfaces/church.interface";
+
+export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const body = req.validated?.body as RegisterChurchDTO;
+    const church = await churchesService.registerChurch(body);
+    await auditLog("CREATE", "Church", church.id, { name: church.name, slug: church.slug }, req);
+    sendSuccess(res, church, 201);
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function search(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {

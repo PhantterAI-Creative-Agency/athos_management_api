@@ -4,11 +4,22 @@ import { AppError } from "../middlewares/errorHandler";
 import type {
   ChurchDTO,
   ChurchSearchResultDTO,
+  RegisterChurchDTO,
   UpdateChurchDTO,
 } from "../interfaces/church.interface";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function slugify(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(new RegExp("[\u0300-\u036f]", "g"), "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function toChurchDTO(church: {
@@ -94,6 +105,29 @@ export async function searchChurches(q: string): Promise<ChurchSearchResultDTO[]
     slug: church.slug,
     address: church.address ?? undefined,
   }));
+}
+
+export async function registerChurch(data: RegisterChurchDTO): Promise<ChurchDTO> {
+  const baseSlug = slugify(data.slug ?? data.name);
+
+  if (!baseSlug) {
+    throw new AppError(400, "INVALID_SLUG", "Não foi possível gerar um slug válido a partir do nome informado");
+  }
+
+  const existing = await Church.findOne({ slug: baseSlug });
+
+  if (existing) {
+    throw new AppError(409, "SLUG_ALREADY_EXISTS", "Já existe uma igreja cadastrada com este slug");
+  }
+
+  const church = await Church.create({
+    name: data.name,
+    logoUrl: data.logoUrl,
+    address: data.address,
+    slug: baseSlug,
+  });
+
+  return toChurchDTO(church);
 }
 
 export async function updateChurch(churchId: string, data: UpdateChurchDTO): Promise<ChurchDTO> {

@@ -3,9 +3,15 @@ import * as churchesController from "../controllers/churches.controller";
 import { authenticate } from "../middlewares/authenticate";
 import { withRole } from "../middlewares/rbac";
 import { validate } from "../middlewares/validate";
-import { searchChurchesQuerySchema, updateChurchSchema } from "../interfaces/church.interface";
+import {
+  registerChurchSchema,
+  searchChurchesQuerySchema,
+  updateChurchSchema,
+} from "../interfaces/church.interface";
 
 const router = Router();
+
+router.post("/", validate(registerChurchSchema), churchesController.register);
 
 router.get("/search", validate(searchChurchesQuerySchema, "query"), churchesController.search);
 

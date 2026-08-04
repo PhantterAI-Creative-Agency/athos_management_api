@@ -6,6 +6,19 @@ export const searchChurchesQuerySchema = z.object({
 
 export type SearchChurchesQueryDTO = z.infer<typeof searchChurchesQuerySchema>;
 
+export const registerChurchSchema = z.object({
+  name: z.string().min(1),
+  logoUrl: z.string().min(1),
+  address: z.string().min(1).optional(),
+  slug: z
+    .string()
+    .min(1)
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Slug deve conter apenas letras minúsculas, números e hífens")
+    .optional(),
+});
+
+export type RegisterChurchDTO = z.infer<typeof registerChurchSchema>;
+
 export interface ChurchSearchResultDTO {
   name: string;
   logoUrl: string;
