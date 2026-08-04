@@ -5,6 +5,8 @@ const churchSchema = new Schema(
     name: { type: String, required: true },
     logoUrl: { type: String, required: true },
     address: { type: String },
+    phone: { type: String },
+    about: { type: String },
     slug: { type: String, required: true, unique: true },
     settings: {
       primaryColor: { type: String, required: true, default: "#000000" },
@@ -22,6 +24,18 @@ const churchSchema = new Schema(
       email: { type: String },
       whatsapp: { type: String },
     },
+    socialLinks: {
+      facebook: { type: String },
+      instagram: { type: String },
+      youtube: { type: String },
+    },
+    serviceSchedule: [
+      {
+        day: { type: String, required: true },
+        time: { type: String, required: true },
+        theme: { type: String, required: true },
+      },
+    ],
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );

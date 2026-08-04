@@ -39,10 +39,24 @@ const contactSchema = z.object({
   whatsapp: z.string().optional(),
 });
 
+const socialLinksSchema = z.object({
+  facebook: z.string().optional(),
+  instagram: z.string().optional(),
+  youtube: z.string().optional(),
+});
+
+const serviceScheduleItemSchema = z.object({
+  day: z.string().min(1),
+  time: z.string().min(1),
+  theme: z.string().min(1),
+});
+
 export const updateChurchSchema = z.object({
   name: z.string().min(1).optional(),
   logoUrl: z.string().min(1).optional(),
   address: z.string().min(1).optional(),
+  phone: z.string().min(1).optional(),
+  about: z.string().min(1).optional(),
   settings: z
     .object({
       primaryColor: z.string().min(1).optional(),
@@ -52,6 +66,8 @@ export const updateChurchSchema = z.object({
     .optional(),
   homeContent: homeContentSchema.optional(),
   contact: contactSchema.optional(),
+  socialLinks: socialLinksSchema.optional(),
+  serviceSchedule: z.array(serviceScheduleItemSchema).optional(),
 });
 
 export type UpdateChurchDTO = z.infer<typeof updateChurchSchema>;
@@ -61,6 +77,8 @@ export interface ChurchDTO {
   name: string;
   logoUrl: string;
   address?: string;
+  phone?: string;
+  about?: string;
   slug: string;
   settings: { primaryColor: string; growthGroupName: string; growthGroupAcronym: string };
   homeContent?: {
@@ -74,5 +92,11 @@ export interface ChurchDTO {
     email?: string;
     whatsapp?: string;
   };
+  socialLinks?: {
+    facebook?: string;
+    instagram?: string;
+    youtube?: string;
+  };
+  serviceSchedule?: { day: string; time: string; theme: string }[];
   createdAt: string;
 }

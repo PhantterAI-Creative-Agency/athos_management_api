@@ -27,6 +27,8 @@ function toChurchDTO(church: {
   name: string;
   logoUrl: string;
   address?: string | null;
+  phone?: string | null;
+  about?: string | null;
   slug: string;
   settings?: {
     primaryColor: string;
@@ -41,6 +43,8 @@ function toChurchDTO(church: {
     bannerEventId?: unknown;
   } | null;
   contact?: { email?: string | null; whatsapp?: string | null } | null;
+  socialLinks?: { facebook?: string | null; instagram?: string | null; youtube?: string | null } | null;
+  serviceSchedule?: { day: string; time: string; theme: string }[] | null;
   createdAt: Date;
 }): ChurchDTO {
   return {
@@ -48,6 +52,8 @@ function toChurchDTO(church: {
     name: church.name,
     logoUrl: church.logoUrl,
     address: church.address ?? undefined,
+    phone: church.phone ?? undefined,
+    about: church.about ?? undefined,
     slug: church.slug,
     settings: {
       primaryColor: church.settings?.primaryColor ?? "#000000",
@@ -68,6 +74,14 @@ function toChurchDTO(church: {
     contact: church.contact
       ? { email: church.contact.email ?? undefined, whatsapp: church.contact.whatsapp ?? undefined }
       : undefined,
+    socialLinks: church.socialLinks
+      ? {
+          facebook: church.socialLinks.facebook ?? undefined,
+          instagram: church.socialLinks.instagram ?? undefined,
+          youtube: church.socialLinks.youtube ?? undefined,
+        }
+      : undefined,
+    serviceSchedule: church.serviceSchedule ?? undefined,
     createdAt: church.createdAt.toISOString(),
   };
 }
@@ -140,6 +154,8 @@ export async function updateChurch(churchId: string, data: UpdateChurchDTO): Pro
   if (data.name !== undefined) church.name = data.name;
   if (data.logoUrl !== undefined) church.logoUrl = data.logoUrl;
   if (data.address !== undefined) church.address = data.address;
+  if (data.phone !== undefined) church.phone = data.phone;
+  if (data.about !== undefined) church.about = data.about;
   if (data.settings !== undefined) {
     church.settings = {
       primaryColor: data.settings.primaryColor ?? church.settings?.primaryColor ?? "#000000",
@@ -157,6 +173,12 @@ export async function updateChurch(churchId: string, data: UpdateChurchDTO): Pro
   }
   if (data.contact !== undefined) {
     church.contact = { ...church.contact, ...data.contact };
+  }
+  if (data.socialLinks !== undefined) {
+    church.socialLinks = { ...church.socialLinks, ...data.socialLinks };
+  }
+  if (data.serviceSchedule !== undefined) {
+    church.set("serviceSchedule", data.serviceSchedule);
   }
 
   await church.save();
