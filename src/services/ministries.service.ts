@@ -142,6 +142,12 @@ export async function listMinistries(requester: AuthTokenPayload, highlightUserI
   return [...dtos.filter((ministry) => ministry.isVolunteer), ...dtos.filter((ministry) => !ministry.isVolunteer)];
 }
 
+export async function listMinistriesPublic(churchId: string): Promise<MinistryDTO[]> {
+  const ministries = await Ministry.find({ churchId }).sort({ name: 1 }).populate("leader", "name");
+
+  return ministries.map((ministry) => toMinistryDTO(ministry, false));
+}
+
 export async function getMinistry(requester: AuthTokenPayload, ministryId: string): Promise<MinistryDTO> {
   const ministry = await findMinistryScoped(requester, ministryId);
 
