@@ -21,9 +21,11 @@ import publicRoutes from "./public.routes";
 import aiChatRoutes from "./aiChat.routes";
 import pastoralCareRoutes from "./pastoralCare.routes";
 import contactRoutes from "./contact.routes";
+import internalRoutes from "./internal.routes";
 
 const router = Router();
 
+router.use("/internal", internalRoutes);
 router.use("/public", publicRoutes);
 router.use("/contact", contactRoutes);
 router.use("/auth", authRoutes);

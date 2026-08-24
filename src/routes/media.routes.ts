@@ -9,6 +9,8 @@ const router = Router();
 
 router.post("/", authenticate, withRole(["admin", "devAdmin"]), validate(createMediaSchema), mediaController.create);
 
+router.post("/sync-youtube", authenticate, withRole(["admin", "devAdmin"]), mediaController.syncYoutube);
+
 router.get("/", authenticate, mediaController.list);
 
 router.get("/:id", authenticate, mediaController.getById);

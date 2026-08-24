@@ -12,6 +12,7 @@ const churchSchema = new Schema(
       primaryColor: { type: String, required: true, default: "#000000" },
       growthGroupName: { type: String, required: true, default: "Grupos de Crescimento" },
       growthGroupAcronym: { type: String, required: true, default: "GC" },
+      youtubeChannelId: { type: String },
     },
     homeContent: {
       intro: { type: String },

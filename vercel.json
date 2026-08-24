@@ -3,5 +3,8 @@
   "outputDirectory": "public",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index" }
+  ],
+  "crons": [
+    { "path": "/athos_adm/api/internal/cron/media-youtube-sync", "schedule": "0 */6 * * *" }
   ]
 }

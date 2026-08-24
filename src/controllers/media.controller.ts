@@ -44,6 +44,17 @@ export async function update(req: Request, res: Response, next: NextFunction): P
   }
 }
 
+export async function syncYoutube(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const churchId = typeof req.body?.churchId === "string" ? req.body.churchId : undefined;
+    const mediaList = await mediaService.syncYoutubeVideos(req.user!, churchId);
+    await auditLog("OTHER", "Media", "youtube", { count: mediaList.length }, req);
+    sendSuccess(res, mediaList);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function remove(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     await mediaService.deleteMedia(req.user!, String(req.params.id));

@@ -31,5 +31,6 @@ export interface MediaDTO {
   title: string;
   youtubeId?: string;
   url?: string;
+  source: "manual" | "youtube_sync";
   createdAt: string;
 }

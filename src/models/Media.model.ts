@@ -8,6 +8,7 @@ const mediaSchema = new Schema(
     title: { type: String, required: true },
     youtubeId: { type: String },
     url: { type: String },
+    source: { type: String, enum: ["manual", "youtube_sync"], required: true, default: "manual" },
   },
   { timestamps: { updatedAt: false } },
 );
