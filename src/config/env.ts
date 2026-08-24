@@ -29,7 +29,6 @@ const envSchema = z.object({
   GMAIL_APP_NAME: z.string().optional(),
   GMAIL_APP_MAIL: z.string().optional(),
   GMAIL_APP_PASSWORD: z.string().optional(),
-  CRON_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
