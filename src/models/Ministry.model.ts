@@ -8,6 +8,15 @@ const ministrySchema = new Schema(
     contractRequired: { type: Boolean, default: false },
     participantsCount: { type: Number, default: 0 },
     leader: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    serviceFunctions: {
+      type: [
+        {
+          name: { type: String, required: true },
+          order: { type: Number, default: 0 },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );

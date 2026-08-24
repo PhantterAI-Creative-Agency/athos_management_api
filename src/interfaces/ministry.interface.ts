@@ -32,6 +32,23 @@ export const addVolunteerSchema = z.object({
 
 export type AddVolunteerDTO = z.infer<typeof addVolunteerSchema>;
 
+export const serviceFunctionItemSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, "Nome da função é obrigatório"),
+});
+
+export const replaceServiceFunctionsSchema = z.object({
+  functions: z.array(serviceFunctionItemSchema).min(1, "Informe ao menos uma função"),
+});
+
+export type ReplaceServiceFunctionsDTO = z.infer<typeof replaceServiceFunctionsSchema>;
+
+export interface ServiceFunctionDTO {
+  id: string;
+  name: string;
+  order: number;
+}
+
 export interface MinistryDTO {
   id: string;
   churchId: string;

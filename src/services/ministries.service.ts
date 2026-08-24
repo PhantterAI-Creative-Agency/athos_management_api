@@ -8,6 +8,8 @@ import type {
   CreateMinistryDTO,
   MinistryDTO,
   MinistryVolunteerDTO,
+  ReplaceServiceFunctionsDTO,
+  ServiceFunctionDTO,
   UpdateMinistryDTO,
 } from "../interfaces/ministry.interface";
 
@@ -90,6 +92,32 @@ async function findMinistryScoped(requester: AuthTokenPayload, ministryId: strin
   }
 
   return ministry;
+}
+
+export function isMinistryLeaderUser(
+  requester: AuthTokenPayload,
+  ministry: { leader?: PopulatedLeader | unknown },
+): boolean {
+  const leader = ministry.leader;
+  if (!leader) return false;
+  const leaderId =
+    typeof leader === "object" && leader !== null && "_id" in leader
+      ? String((leader as PopulatedLeader)._id)
+      : String(leader);
+  return leaderId === requester.sub;
+}
+
+function assertCanManageMinistry(
+  requester: AuthTokenPayload,
+  ministry: { leader?: PopulatedLeader | unknown },
+): void {
+  if (isAdmin(requester) || isMinistryLeaderUser(requester, ministry)) return;
+
+  throw new AppError(
+    403,
+    "FORBIDDEN",
+    "Apenas administradores ou o líder deste ministério podem gerenciar escalas",
+  );
 }
 
 async function assertLeaderInChurch(leaderId: string, churchId: string): Promise<void> {
@@ -255,4 +283,55 @@ export async function addVolunteer(
   }
 
   return toVolunteerDTO(volunteer);
+}
+
+export async function listVolunteers(
+  requester: AuthTokenPayload,
+  ministryId: string,
+): Promise<MinistryVolunteerDTO[]> {
+  await findMinistryScoped(requester, ministryId);
+
+  const volunteers = await MinistryVolunteer.find({ ministryId, active: true });
+
+  return volunteers.map(toVolunteerDTO);
+}
+
+function toServiceFunctionDTO(item: { _id: unknown; name: string; order: number }): ServiceFunctionDTO {
+  return {
+    id: String(item._id),
+    name: item.name,
+    order: item.order,
+  };
+}
+
+export async function getServiceFunctions(
+  requester: AuthTokenPayload,
+  ministryId: string,
+): Promise<ServiceFunctionDTO[]> {
+  const ministry = await findMinistryScoped(requester, ministryId);
+
+  return ministry.serviceFunctions.map(toServiceFunctionDTO);
+}
+
+export async function replaceServiceFunctions(
+  requester: AuthTokenPayload,
+  ministryId: string,
+  data: ReplaceServiceFunctionsDTO,
+): Promise<ServiceFunctionDTO[]> {
+  const ministry = await findMinistryScoped(requester, ministryId);
+  assertCanManageMinistry(requester, ministry);
+
+  const existingIds = new Set(ministry.serviceFunctions.map((item) => String(item._id)));
+
+  const nextFunctions = data.functions.map((item, index) => ({
+    ...(item.id && existingIds.has(item.id) ? { _id: item.id } : {}),
+    name: item.name,
+    order: index,
+  }));
+
+  ministry.set("serviceFunctions", nextFunctions);
+
+  await ministry.save();
+
+  return ministry.serviceFunctions.map(toServiceFunctionDTO);
 }
