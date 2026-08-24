@@ -10,6 +10,7 @@ type DevotionalDocumentLike = {
   content: string;
   publishedAt: Date;
   createdAt: Date;
+  imageUrl?: string | null;
 };
 
 function toDevotionalDTO(devotional: DevotionalDocumentLike): DevotionalDTO {
@@ -20,6 +21,7 @@ function toDevotionalDTO(devotional: DevotionalDocumentLike): DevotionalDTO {
     content: devotional.content,
     publishedAt: devotional.publishedAt.toISOString(),
     createdAt: devotional.createdAt.toISOString(),
+    imageUrl: devotional.imageUrl ?? undefined,
   };
 }
 
@@ -52,6 +54,7 @@ export async function createDevotional(
     title: data.title,
     content: data.content,
     publishedAt: data.publishedAt ? new Date(data.publishedAt) : undefined,
+    imageUrl: data.imageUrl,
   });
 
   return toDevotionalDTO(devotional);
@@ -85,6 +88,7 @@ export async function updateDevotional(
   if (data.title !== undefined) devotional.title = data.title;
   if (data.content !== undefined) devotional.content = data.content;
   if (data.publishedAt !== undefined) devotional.publishedAt = new Date(data.publishedAt);
+  if (data.imageUrl !== undefined) devotional.imageUrl = data.imageUrl;
 
   await devotional.save();
 

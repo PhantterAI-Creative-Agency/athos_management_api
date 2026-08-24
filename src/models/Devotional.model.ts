@@ -6,6 +6,7 @@ const devotionalSchema = new Schema(
     title: { type: String, required: true },
     content: { type: String, required: true },
     publishedAt: { type: Date, required: true, default: Date.now },
+    imageUrl: { type: String },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );

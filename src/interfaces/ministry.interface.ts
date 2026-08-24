@@ -3,7 +3,7 @@ import { z } from "zod";
 export const createMinistrySchema = z.object({
   churchId: z.string().optional(),
   name: z.string().min(1, "Nome é obrigatório"),
-  iconUrl: z.string().optional(),
+  iconUrl: z.string().max(2_000_000, "Imagem muito grande").optional(),
   contractRequired: z.boolean().optional(),
   leaderId: z.string().nullable().optional(),
 });
@@ -12,7 +12,7 @@ export type CreateMinistryDTO = z.infer<typeof createMinistrySchema>;
 
 export const updateMinistrySchema = z.object({
   name: z.string().min(1).optional(),
-  iconUrl: z.string().optional(),
+  iconUrl: z.string().max(2_000_000, "Imagem muito grande").optional(),
   contractRequired: z.boolean().optional(),
   leaderId: z.string().nullable().optional(),
 });
