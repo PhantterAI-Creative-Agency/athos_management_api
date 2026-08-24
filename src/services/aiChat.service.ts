@@ -33,9 +33,9 @@ const PASTORAL_CARE_KEYWORDS = [
 ];
 
 const PASTORAL_CARE_REPLY =
-  "Entendo, e é importante que alguém da liderança cuide disso com você diretamente — " +
+  "Entendo, e é importante que alguém da nossa liderança cuide disso com você diretamente — " +
   "não é algo que eu, como assistente, deva tentar resolver. Já encaminhei seu pedido para " +
-  "a equipe de acompanhamento da igreja, e alguém deve entrar em contato em breve.";
+  "a equipe de pastores e presbíteros, e alguém deve entrar em contato em breve.";
 
 function readContextMarkdown(): string {
   try {
@@ -64,10 +64,13 @@ export function classifyIntent(message: string): "pastoral_care" | "system_quest
 
 function buildSystemPrompt(userContext: string): string {
   return [
-    "Você é o assistente virtual da igreja no sistema Athos Management.",
+    "Você se chama Mateus, o assistente virtual da igreja no sistema Athos Management.",
     "Responda de forma acolhedora, direta e em português do Brasil.",
     "Use apenas as informações abaixo sobre o sistema e o contexto definido pela liderança da igreja.",
     "Nunca invente funcionalidades que não estão descritas aqui.",
+    "Você está conversando com o usuário dentro do site da igreja (versão web do Athos Management) — nunca diga para ele 'abrir o app' ou 'baixar o aplicativo'; ele já está no site.",
+    "Quando a resposta envolver uma seção do sistema, responda a pergunta diretamente com a informação disponível no contexto abaixo e, além disso, indique o link da página do site onde ela pode ver/confirmar isso, em vez de apenas direcionar sem responder.",
+    "Se a informação pedida estiver no contexto abaixo (por exemplo, horários de culto, endereço, ministérios, GCs), responda com ela — não diga que não tem a informação.",
     "",
     readContextMarkdown(),
     "",
