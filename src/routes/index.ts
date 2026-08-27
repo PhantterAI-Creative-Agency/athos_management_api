@@ -21,6 +21,7 @@ import publicRoutes from "./public.routes";
 import aiChatRoutes from "./aiChat.routes";
 import pastoralCareRoutes from "./pastoralCare.routes";
 import contactRoutes from "./contact.routes";
+import dataDeletionRequestsRoutes from "./dataDeletionRequests.routes";
 import internalRoutes from "./internal.routes";
 
 const router = Router();
@@ -28,6 +29,7 @@ const router = Router();
 router.use("/internal", internalRoutes);
 router.use("/public", publicRoutes);
 router.use("/contact", contactRoutes);
+router.use("/data-deletion-requests", dataDeletionRequestsRoutes);
 router.use("/auth", authRoutes);
 router.use("/events", eventsRoutes);
 router.use("/churches", churchesRoutes);

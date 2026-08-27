@@ -26,4 +26,5 @@ function buildLimiter(windowMs: number, max: number) {
 
 export const authLimiter = buildLimiter(15 * 60 * 1000, 10);
 export const contactLimiter = buildLimiter(15 * 60 * 1000, 5);
+export const dataDeletionRequestLimiter = buildLimiter(15 * 60 * 1000, 5);
 export const mediaSyncLimiter = buildLimiter(60 * 60 * 1000, 6);
