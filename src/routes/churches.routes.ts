@@ -3,6 +3,7 @@ import * as churchesController from "../controllers/churches.controller";
 import { authenticate } from "../middlewares/authenticate";
 import { withRole } from "../middlewares/rbac";
 import { validate } from "../middlewares/validate";
+import { trackAuthenticatedAccess } from "../middlewares/trackAccess";
 import {
   registerChurchSchema,
   searchChurchesQuerySchema,
@@ -15,7 +16,7 @@ router.post("/", validate(registerChurchSchema), churchesController.register);
 
 router.get("/search", validate(searchChurchesQuerySchema, "query"), churchesController.search);
 
-router.get("/me", authenticate, churchesController.getMe);
+router.get("/me", authenticate, trackAuthenticatedAccess(), churchesController.getMe);
 router.patch(
   "/me",
   authenticate,
