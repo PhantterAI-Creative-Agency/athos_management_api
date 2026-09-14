@@ -11,6 +11,7 @@ router.get("/churches/:slug", trackPublicAccess, publicController.getChurch);
 router.get("/churches/:slug/events", trackPublicAccess, publicController.getEvents);
 router.get("/churches/:slug/devotionals", trackPublicAccess, publicController.getDevotionals);
 router.get("/churches/:slug/media", trackPublicAccess, publicController.getMedia);
+router.get("/churches/:slug/jingles", trackPublicAccess, publicController.getJingles);
 router.get("/churches/:slug/ministries", trackPublicAccess, publicController.getMinistries);
 router.post(
   "/churches/:slug/ai-chat/messages",
