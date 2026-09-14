@@ -11,6 +11,7 @@ router.get("/churches/:slug", publicController.getChurch);
 router.get("/churches/:slug/events", publicController.getEvents);
 router.get("/churches/:slug/devotionals", publicController.getDevotionals);
 router.get("/churches/:slug/media", publicController.getMedia);
+router.get("/churches/:slug/jingles", publicController.getJingles);
 router.get("/churches/:slug/ministries", publicController.getMinistries);
 router.get(
   "/churches/:slug/ads",
