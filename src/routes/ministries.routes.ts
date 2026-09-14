@@ -4,6 +4,7 @@ import * as ministrySchedulesController from "../controllers/ministrySchedules.c
 import { authenticate } from "../middlewares/authenticate";
 import { withRole } from "../middlewares/rbac";
 import { validate } from "../middlewares/validate";
+import { trackAuthenticatedAccess } from "../middlewares/trackAccess";
 import {
   addVolunteerSchema,
   createMinistrySchema,
@@ -31,10 +32,11 @@ router.get(
   "/",
   authenticate,
   validate(listMinistriesQuerySchema, "query"),
+  trackAuthenticatedAccess(),
   ministriesController.list,
 );
 
-router.get("/:id", authenticate, ministriesController.getById);
+router.get("/:id", authenticate, trackAuthenticatedAccess("id"), ministriesController.getById);
 
 router.patch(
   "/:id",

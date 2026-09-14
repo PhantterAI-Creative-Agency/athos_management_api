@@ -4,6 +4,7 @@ import * as eventRegistrationsController from "../controllers/eventRegistrations
 import { authenticate } from "../middlewares/authenticate";
 import { withRole } from "../middlewares/rbac";
 import { validate } from "../middlewares/validate";
+import { trackAuthenticatedAccess } from "../middlewares/trackAccess";
 import { createEventSchema, listEventsQuerySchema, updateEventSchema } from "../interfaces/event.interface";
 import {
   listEventRegistrationsQuerySchema,
@@ -21,7 +22,13 @@ router.post(
   eventsController.create,
 );
 
-router.get("/", authenticate, validate(listEventsQuerySchema, "query"), eventsController.list);
+router.get(
+  "/",
+  authenticate,
+  validate(listEventsQuerySchema, "query"),
+  trackAuthenticatedAccess(),
+  eventsController.list,
+);
 
 router.get(
   "/registrations",
