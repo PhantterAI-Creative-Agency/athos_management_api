@@ -3,6 +3,7 @@ import * as churchesService from "../services/churches.service";
 import * as eventsService from "../services/events.service";
 import * as devotionalsService from "../services/devotionals.service";
 import * as mediaService from "../services/media.service";
+import * as jingleService from "../services/jingle.service";
 import * as ministriesService from "../services/ministries.service";
 import { sendSuccess } from "../helpers/response.helper";
 
@@ -40,6 +41,16 @@ export async function getMedia(req: Request, res: Response, next: NextFunction):
     const church = await churchesService.getChurchBySlug(String(req.params.slug));
     const mediaList = await mediaService.listMediaPublic(church.id);
     sendSuccess(res, mediaList);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getJingles(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const church = await churchesService.getChurchBySlug(String(req.params.slug));
+    const jingles = await jingleService.listJinglesPublic(church.id);
+    sendSuccess(res, jingles);
   } catch (error) {
     next(error);
   }
