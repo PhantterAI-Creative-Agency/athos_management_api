@@ -46,6 +46,7 @@ const userSchema = new Schema(
     badges: [{ type: Schema.Types.ObjectId, ref: "Badge" }],
     friendsCount: { type: Number, default: 0 },
     followingCount: { type: Number, default: 0 },
+    followersCount: { type: Number, default: 0 },
     refreshTokenHash: { type: String, select: false },
   },
   { timestamps: true },

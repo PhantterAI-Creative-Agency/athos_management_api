@@ -294,6 +294,84 @@ describe("GET /athos_adm/api/mural", () => {
   });
 });
 
+describe("visibilidade de posts pessoais (seguir/amizade)", () => {
+  it("membro não vê post público de quem não segue nem é amigo", async () => {
+    const created = await request(app)
+      .post("/athos_adm/api/mural")
+      .set("Authorization", `Bearer ${memberAccessToken}`)
+      .send({ content: "Post público sem relação" });
+    const postId = created.body.data.id;
+
+    const response = await request(app)
+      .get("/athos_adm/api/mural")
+      .set("Authorization", `Bearer ${otherMemberAccessToken}`);
+
+    expect(response.status).toBe(200);
+    const ids = response.body.data.items.map((item: { id: string }) => item.id);
+    expect(ids).not.toContain(postId);
+  });
+
+  it("quem segue o autor vê o post público dele", async () => {
+    await request(app)
+      .post("/athos_adm/api/follows")
+      .set("Authorization", `Bearer ${otherMemberAccessToken}`)
+      .send({ followingId: memberId });
+
+    const response = await request(app)
+      .get("/athos_adm/api/mural")
+      .set("Authorization", `Bearer ${otherMemberAccessToken}`);
+
+    expect(response.status).toBe(200);
+    const post = response.body.data.items.find(
+      (item: { content: string }) => item.content === "Post público sem relação",
+    );
+    expect(post).toBeTruthy();
+    expect(post.authorName).toBe("Membro Teste");
+    expect(post.viewerFollowsAuthor).toBe(true);
+    expect(post.viewerFriendshipStatus).toBe("none");
+  });
+
+  it("post privado não é visível a quem apenas segue, só a amigos aceitos", async () => {
+    const created = await request(app)
+      .post("/athos_adm/api/mural")
+      .set("Authorization", `Bearer ${memberAccessToken}`)
+      .send({ content: "Post privado", visibility: "private" });
+    const postId = created.body.data.id;
+
+    const beforeFriendship = await request(app)
+      .get("/athos_adm/api/mural")
+      .set("Authorization", `Bearer ${otherMemberAccessToken}`);
+    expect(beforeFriendship.body.data.items.map((item: { id: string }) => item.id)).not.toContain(postId);
+
+    const friendRequest = await request(app)
+      .post("/athos_adm/api/friends")
+      .set("Authorization", `Bearer ${otherMemberAccessToken}`)
+      .send({ friendId: memberId });
+
+    await request(app)
+      .patch(`/athos_adm/api/friends/${friendRequest.body.data.id}`)
+      .set("Authorization", `Bearer ${memberAccessToken}`);
+
+    const afterFriendship = await request(app)
+      .get("/athos_adm/api/mural")
+      .set("Authorization", `Bearer ${otherMemberAccessToken}`);
+
+    const ids = afterFriendship.body.data.items.map((item: { id: string }) => item.id);
+    expect(ids).toContain(postId);
+    const post = afterFriendship.body.data.items.find((item: { id: string }) => item.id === postId);
+    expect(post.viewerFriendshipStatus).toBe("accepted");
+  });
+
+  it("autor sempre vê o próprio post independentemente da visibilidade", async () => {
+    const response = await request(app)
+      .get("/athos_adm/api/mural")
+      .set("Authorization", `Bearer ${memberAccessToken}`);
+
+    const contents = response.body.data.items.map((item: { content: string }) => item.content);
+    expect(contents).toContain("Post privado");
+  });
+});
+
 describe("POST /athos_adm/api/mural/:id/like", () => {
   let postId: string;
 

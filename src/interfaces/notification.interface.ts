@@ -8,6 +8,7 @@ export const NOTIFICATION_TYPES = [
   "mural",
   "plan_reminder",
   "pastoral_care_request",
+  "new_follower",
 ] as const;
 
 export const registerDeviceTokenSchema = z.object({

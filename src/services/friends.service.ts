@@ -24,7 +24,7 @@ function toFriendshipDTO(friendship: FriendshipDocumentLike): FriendshipDTO {
   };
 }
 
-async function getAcceptedFriendIds(userId: string): Promise<Set<string>> {
+export async function getAcceptedFriendIds(userId: string): Promise<Set<string>> {
   const friendships = await Friendship.find({
     status: "accepted",
     $or: [{ userId }, { friendId: userId }],
@@ -35,6 +35,33 @@ async function getAcceptedFriendIds(userId: string): Promise<Set<string>> {
       String(friendship.userId) === userId ? String(friendship.friendId) : String(friendship.userId),
     ),
   );
+}
+
+export async function getFriendshipMap(
+  userId: string,
+  otherUserIds: string[],
+): Promise<Map<string, { status: "pending" | "accepted"; direction: "sent" | "received" }>> {
+  if (otherUserIds.length === 0) return new Map();
+
+  const friendships = await Friendship.find({
+    $or: [
+      { userId, friendId: { $in: otherUserIds } },
+      { userId: { $in: otherUserIds }, friendId: userId },
+    ],
+  });
+
+  const map = new Map<string, { status: "pending" | "accepted"; direction: "sent" | "received" }>();
+
+  for (const friendship of friendships) {
+    const isSent = String(friendship.userId) === userId;
+    const otherId = isSent ? String(friendship.friendId) : String(friendship.userId);
+    map.set(otherId, {
+      status: friendship.status === "accepted" ? "accepted" : "pending",
+      direction: isSent ? "sent" : "received",
+    });
+  }
+
+  return map;
 }
 
 async function findFriendshipParticipant(requester: AuthTokenPayload, friendshipId: string) {
