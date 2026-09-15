@@ -8,6 +8,7 @@ const muralPostSchema = new Schema(
     content: { type: String, required: true },
     audience: { type: String, enum: ["all", "ministry", "growthGroup"], required: true, default: "all" },
     audienceRefId: { type: Schema.Types.ObjectId },
+    visibility: { type: String, enum: ["public", "private"], default: "public" },
     likesCount: { type: Number, default: 0 },
     commentsCount: { type: Number, default: 0 },
   },

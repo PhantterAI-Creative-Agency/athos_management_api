@@ -8,7 +8,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
   try {
     const body = req.validated?.body as CreateMuralPostDTO;
     const post = await muralService.createMuralPost(req.user!, body);
-    await auditLog("CREATE", "MuralPost", post.id, { audience: body.audience }, req);
+    await auditLog("CREATE", "MuralPost", post.id, { audience: body.audience, visibility: post.visibility }, req);
     sendSuccess(res, post, 201);
   } catch (error) {
     next(error);
