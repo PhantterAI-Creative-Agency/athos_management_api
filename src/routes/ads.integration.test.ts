@@ -168,6 +168,49 @@ describe("GET /athos_adm/api/public/churches/:slug/ads", () => {
   });
 });
 
+describe("GET /athos_adm/api/ads/settings", () => {
+  it("retorna as configurações de anúncios da igreja do usuário autenticado", async () => {
+    const response = await request(app)
+      .get("/athos_adm/api/ads/settings")
+      .set("Authorization", `Bearer ${accessToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ adsEnabled: true, disabledAdPlacements: [] });
+  });
+});
+
+describe("PATCH /athos_adm/api/ads/settings", () => {
+  it("atualiza a ativação global e as posições desativadas de anúncios", async () => {
+    const response = await request(app)
+      .patch("/athos_adm/api/ads/settings")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ adsEnabled: false, disabledAdPlacements: ["home_grid"] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ adsEnabled: false, disabledAdPlacements: ["home_grid"] });
+
+    const getResponse = await request(app)
+      .get("/athos_adm/api/ads/settings")
+      .set("Authorization", `Bearer ${accessToken}`);
+
+    expect(getResponse.body.data).toEqual({ adsEnabled: false, disabledAdPlacements: ["home_grid"] });
+
+    await request(app)
+      .patch("/athos_adm/api/ads/settings")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ adsEnabled: true, disabledAdPlacements: [] });
+  });
+
+  it("não altera as configurações de outra igreja", async () => {
+    const response = await request(app)
+      .get("/athos_adm/api/ads/settings")
+      .set("Authorization", `Bearer ${otherChurchAccessToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ adsEnabled: true, disabledAdPlacements: [] });
+  });
+});
+
 describe("POST /athos_adm/api/ads/:id/click", () => {
   it("incrementa o contador de cliques do anúncio", async () => {
     const clickResponse = await request(app)

@@ -30,6 +30,18 @@ export const updateAdSchema = z.object({
 
 export type UpdateAdDTO = z.infer<typeof updateAdSchema>;
 
+export const updateAdsSettingsSchema = z.object({
+  adsEnabled: z.boolean().optional(),
+  disabledAdPlacements: z.array(z.string()).optional(),
+});
+
+export type UpdateAdsSettingsDTO = z.infer<typeof updateAdsSettingsSchema>;
+
+export interface AdsSettingsDTO {
+  adsEnabled: boolean;
+  disabledAdPlacements: string[];
+}
+
 export const listAdsPublicQuerySchema = z.object({
   placement: z.string().min(1, "Posição é obrigatória"),
   format: adFormatSchema,

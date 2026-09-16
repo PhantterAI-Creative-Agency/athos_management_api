@@ -2,7 +2,12 @@ import type { NextFunction, Request, Response } from "express";
 import * as adsService from "../services/ads.service";
 import { sendSuccess } from "../helpers/response.helper";
 import { auditLog } from "../helpers/auditLogger.helper";
-import type { CreateAdDTO, ListAdsPublicQueryDTO, UpdateAdDTO } from "../interfaces/ad.interface";
+import type {
+  CreateAdDTO,
+  ListAdsPublicQueryDTO,
+  UpdateAdDTO,
+  UpdateAdsSettingsDTO,
+} from "../interfaces/ad.interface";
 
 export async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -39,6 +44,26 @@ export async function update(req: Request, res: Response, next: NextFunction): P
     const ad = await adsService.updateAd(req.user!, String(req.params.id), body);
     await auditLog("UPDATE", "Ad", ad.id, { title: ad.title }, req);
     sendSuccess(res, ad);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const settings = await adsService.getAdsSettings(req.user!);
+    sendSuccess(res, settings);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const body = req.validated?.body as UpdateAdsSettingsDTO;
+    const settings = await adsService.updateAdsSettings(req.user!, body);
+    await auditLog("UPDATE", "AdsSettings", req.user!.churchId, { ...settings }, req);
+    sendSuccess(res, settings);
   } catch (error) {
     next(error);
   }

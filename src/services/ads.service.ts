@@ -2,7 +2,7 @@ import { Ad } from "../models/Ad.model";
 import { Church } from "../models/Church.model";
 import { AppError } from "../middlewares/errorHandler";
 import type { AuthTokenPayload } from "../helpers/jwt.helper";
-import type { AdDTO, CreateAdDTO, UpdateAdDTO } from "../interfaces/ad.interface";
+import type { AdDTO, AdsSettingsDTO, CreateAdDTO, UpdateAdDTO, UpdateAdsSettingsDTO } from "../interfaces/ad.interface";
 
 type AdDocumentLike = {
   _id: unknown;
@@ -113,6 +113,43 @@ export async function deleteAd(requester: AuthTokenPayload, adId: string): Promi
   const ad = await findAdScoped(requester, adId);
 
   await ad.deleteOne();
+}
+
+export async function getAdsSettings(requester: AuthTokenPayload): Promise<AdsSettingsDTO> {
+  const church = await Church.findById(requester.churchId).select(
+    "settings.adsEnabled settings.disabledAdPlacements",
+  );
+
+  return {
+    adsEnabled: church?.settings?.adsEnabled ?? true,
+    disabledAdPlacements: church?.settings?.disabledAdPlacements ?? [],
+  };
+}
+
+export async function updateAdsSettings(
+  requester: AuthTokenPayload,
+  data: UpdateAdsSettingsDTO,
+): Promise<AdsSettingsDTO> {
+  const church = await Church.findById(requester.churchId);
+
+  if (!church) {
+    throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
+  }
+
+  const adsEnabled = data.adsEnabled ?? church.settings?.adsEnabled ?? true;
+  const disabledAdPlacements = data.disabledAdPlacements ?? church.settings?.disabledAdPlacements ?? [];
+
+  church.settings = {
+    primaryColor: church.settings?.primaryColor ?? "#000000",
+    growthGroupName: church.settings?.growthGroupName ?? "Grupos de Crescimento",
+    growthGroupAcronym: church.settings?.growthGroupAcronym ?? "GC",
+    adsEnabled,
+    disabledAdPlacements,
+  };
+
+  await church.save();
+
+  return { adsEnabled, disabledAdPlacements };
 }
 
 /** Retorna um único anúncio ativo (dentro do período vigente) sorteado entre os elegíveis para a posição/formato. */
