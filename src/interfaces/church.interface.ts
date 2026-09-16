@@ -62,6 +62,8 @@ export const updateChurchSchema = z.object({
       primaryColor: z.string().min(1).optional(),
       growthGroupName: z.string().min(1).optional(),
       growthGroupAcronym: z.string().min(1).optional(),
+      adsEnabled: z.boolean().optional(),
+      disabledAdPlacements: z.array(z.string()).optional(),
     })
     .optional(),
   homeContent: homeContentSchema.optional(),
@@ -80,7 +82,13 @@ export interface ChurchDTO {
   phone?: string;
   about?: string;
   slug: string;
-  settings: { primaryColor: string; growthGroupName: string; growthGroupAcronym: string };
+  settings: {
+    primaryColor: string;
+    growthGroupName: string;
+    growthGroupAcronym: string;
+    adsEnabled: boolean;
+    disabledAdPlacements: string[];
+  };
   homeContent?: {
     intro?: string;
     mission?: string;

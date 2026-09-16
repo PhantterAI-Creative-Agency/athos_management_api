@@ -34,6 +34,8 @@ function toChurchDTO(church: {
     primaryColor: string;
     growthGroupName?: string;
     growthGroupAcronym?: string;
+    adsEnabled?: boolean;
+    disabledAdPlacements?: string[];
   } | null;
   homeContent?: {
     intro?: string | null;
@@ -59,6 +61,8 @@ function toChurchDTO(church: {
       primaryColor: church.settings?.primaryColor ?? "#000000",
       growthGroupName: church.settings?.growthGroupName ?? "Grupos de Crescimento",
       growthGroupAcronym: church.settings?.growthGroupAcronym ?? "GC",
+      adsEnabled: church.settings?.adsEnabled ?? true,
+      disabledAdPlacements: church.settings?.disabledAdPlacements ?? [],
     },
     homeContent: church.homeContent
       ? {
@@ -161,6 +165,8 @@ export async function updateChurch(churchId: string, data: UpdateChurchDTO): Pro
       primaryColor: data.settings.primaryColor ?? church.settings?.primaryColor ?? "#000000",
       growthGroupName: data.settings.growthGroupName ?? church.settings?.growthGroupName ?? "Grupos de Crescimento",
       growthGroupAcronym: data.settings.growthGroupAcronym ?? church.settings?.growthGroupAcronym ?? "GC",
+      adsEnabled: data.settings.adsEnabled ?? church.settings?.adsEnabled ?? true,
+      disabledAdPlacements: data.settings.disabledAdPlacements ?? church.settings?.disabledAdPlacements ?? [],
     };
   }
   if (data.homeContent !== undefined) {
