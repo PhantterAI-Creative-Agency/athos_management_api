@@ -1,4 +1,5 @@
 import { Ad } from "../models/Ad.model";
+import { Church } from "../models/Church.model";
 import { AppError } from "../middlewares/errorHandler";
 import type { AuthTokenPayload } from "../helpers/jwt.helper";
 import type { AdDTO, CreateAdDTO, UpdateAdDTO } from "../interfaces/ad.interface";
@@ -120,6 +121,14 @@ async function pickRandomActiveAd(
   placement: string,
   format: "card" | "slide",
 ): Promise<AdDTO | null> {
+  const church = await Church.findById(churchId).select("settings.adsEnabled settings.disabledAdPlacements");
+  const adsEnabled = church?.settings?.adsEnabled ?? true;
+  const disabledPlacements = church?.settings?.disabledAdPlacements ?? [];
+
+  if (!adsEnabled || disabledPlacements.includes(placement)) {
+    return null;
+  }
+
   const now = new Date();
 
   const ads = await Ad.find({

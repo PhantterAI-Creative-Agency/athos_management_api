@@ -13,6 +13,8 @@ const churchSchema = new Schema(
       growthGroupName: { type: String, required: true, default: "Grupos de Crescimento" },
       growthGroupAcronym: { type: String, required: true, default: "GC" },
       youtubeChannelId: { type: String },
+      adsEnabled: { type: Boolean, required: true, default: true },
+      disabledAdPlacements: { type: [String], required: true, default: [] },
     },
     homeContent: {
       intro: { type: String },
