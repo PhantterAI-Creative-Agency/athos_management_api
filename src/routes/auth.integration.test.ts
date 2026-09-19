@@ -125,3 +125,61 @@ describe("POST /athos_adm/api/auth/oauth/:provider", () => {
     expect(response.body.error.code).toBe("NOT_IMPLEMENTED");
   });
 });
+
+describe("POST /athos_adm/api/auth/register", () => {
+  const base = {
+    churchSlug: "igreja-teste",
+    name: "Novo Usuário",
+    email: "novo@teste.com",
+    password: "senha1234",
+    isChurchMember: true,
+  };
+
+  it("cadastra o usuário como inativo", async () => {
+    const response = await request(app).post("/athos_adm/api/auth/register").send({
+      ...base,
+      address: { cep: "09015-000", street: "Rua A", city: "Santo André", state: "SP", number: "10" },
+    });
+
+    expect(response.status).toBe(201);
+
+    const { User } = await import("../models/User.model");
+    const user = await User.findOne({ email: "novo@teste.com" });
+    expect(user?.active).toBe(false);
+    expect(user?.isChurchMember).toBe(true);
+    expect(user?.address?.cep).toBe("09015000");
+  });
+
+  it("rejeita e-mail já cadastrado", async () => {
+    const response = await request(app)
+      .post("/athos_adm/api/auth/register")
+      .send({ ...base, email: "membro@teste.com" });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe("EMAIL_ALREADY_EXISTS");
+  });
+
+  it("exige o número quando o CEP é informado", async () => {
+    const response = await request(app)
+      .post("/athos_adm/api/auth/register")
+      .send({ ...base, email: "cep@teste.com", address: { cep: "09015000", street: "Rua A" } });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("exige o campo membro e rejeita username duplicado", async () => {
+    const { isChurchMember: _omit, ...withoutMember } = base;
+    const missing = await request(app)
+      .post("/athos_adm/api/auth/register")
+      .send({ ...withoutMember, email: "a@teste.com" });
+    expect(missing.status).toBe(400);
+
+    await request(app).post("/athos_adm/api/auth/register").send({ ...base, email: "u1@teste.com", username: "fulano" });
+    const dup = await request(app)
+      .post("/athos_adm/api/auth/register")
+      .send({ ...base, email: "u2@teste.com", username: "Fulano" });
+    expect(dup.status).toBe(409);
+    expect(dup.body.error.code).toBe("USERNAME_ALREADY_EXISTS");
+  });
+});

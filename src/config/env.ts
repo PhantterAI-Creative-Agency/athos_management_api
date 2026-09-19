@@ -29,6 +29,8 @@ const envSchema = z.object({
   GMAIL_APP_NAME: z.string().optional(),
   GMAIL_APP_MAIL: z.string().optional(),
   GMAIL_APP_PASSWORD: z.string().optional(),
+  // E-mails (separados por vírgula) do grupo que administra o site e recebe avisos de novos cadastros.
+  REGISTRATION_NOTIFY_EMAILS: z.string().default(""),
 });
 
 const parsed = envSchema.safeParse(process.env);
