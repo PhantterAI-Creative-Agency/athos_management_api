@@ -34,9 +34,26 @@ const homeContentSchema = z.object({
   bannerEventId: z.string().optional(),
 });
 
+const socialLinkSchema = z.object({
+  platform: z.string().min(1),
+  url: z.string().min(1),
+});
+
 const contactSchema = z.object({
   email: z.string().optional(),
   whatsapp: z.string().optional(),
+  phone: z.string().optional(),
+  socialLinks: z.array(socialLinkSchema).optional(),
+});
+
+const addressDetailsSchema = z.object({
+  cep: z.string().min(1),
+  street: z.string().min(1),
+  number: z.string().min(1),
+  complement: z.string().optional(),
+  neighborhood: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
 });
 
 const socialLinksSchema = z.object({
@@ -54,7 +71,9 @@ const serviceScheduleItemSchema = z.object({
 export const updateChurchSchema = z.object({
   name: z.string().min(1).optional(),
   logoUrl: z.string().min(1).optional(),
-  address: z.string().min(1).optional(),
+  pastors: z.string().min(1).optional(),
+  address: z.string().optional(),
+  addressDetails: addressDetailsSchema.optional(),
   phone: z.string().min(1).optional(),
   about: z.string().min(1).optional(),
   settings: z
@@ -79,6 +98,16 @@ export interface ChurchDTO {
   name: string;
   logoUrl: string;
   address?: string;
+  pastors?: string;
+  addressDetails?: {
+    cep: string;
+    street: string;
+    number: string;
+    complement?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+  };
   phone?: string;
   about?: string;
   slug: string;
@@ -99,6 +128,8 @@ export interface ChurchDTO {
   contact?: {
     email?: string;
     whatsapp?: string;
+    phone?: string;
+    socialLinks?: { platform: string; url: string }[];
   };
   socialLinks?: {
     facebook?: string;

@@ -25,4 +25,14 @@ router.patch(
   churchesController.updateMe,
 );
 
+// Dados gerais da igreja, identificados pelo slug (deve ser o da igreja do usuário logado)
+router.get("/:slug", authenticate, trackAuthenticatedAccess(), churchesController.getBySlug);
+router.patch(
+  "/:slug",
+  authenticate,
+  withRole(["admin"]),
+  validate(updateChurchSchema),
+  churchesController.updateBySlug,
+);
+
 export default router;

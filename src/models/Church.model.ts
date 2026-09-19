@@ -5,6 +5,16 @@ const churchSchema = new Schema(
     name: { type: String, required: true },
     logoUrl: { type: String, required: true },
     address: { type: String },
+    pastors: { type: String },
+    addressDetails: {
+      cep: { type: String },
+      street: { type: String },
+      number: { type: String },
+      complement: { type: String },
+      neighborhood: { type: String },
+      city: { type: String },
+      state: { type: String },
+    },
     phone: { type: String },
     about: { type: String },
     slug: { type: String, required: true, unique: true },
@@ -26,6 +36,14 @@ const churchSchema = new Schema(
     contact: {
       email: { type: String },
       whatsapp: { type: String },
+      phone: { type: String },
+      socialLinks: [
+        {
+          platform: { type: String, required: true },
+          url: { type: String, required: true },
+          _id: false,
+        },
+      ],
     },
     socialLinks: {
       facebook: { type: String },

@@ -38,6 +38,26 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
   }
 }
 
+export async function getBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const church = await churchesService.getChurchForUser(req.user!.churchId, String(req.params.slug));
+    sendSuccess(res, church);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const body = req.validated?.body as UpdateChurchDTO;
+    const church = await churchesService.updateChurch(req.user!.churchId, body, String(req.params.slug));
+    await auditLog("UPDATE", "Church", church.id, { name: church.name }, req);
+    sendSuccess(res, church);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function updateMe(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = req.validated?.body as UpdateChurchDTO;

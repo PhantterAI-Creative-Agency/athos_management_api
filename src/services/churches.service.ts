@@ -27,6 +27,16 @@ function toChurchDTO(church: {
   name: string;
   logoUrl: string;
   address?: string | null;
+  pastors?: string | null;
+  addressDetails?: {
+    cep?: string | null;
+    street?: string | null;
+    number?: string | null;
+    complement?: string | null;
+    neighborhood?: string | null;
+    city?: string | null;
+    state?: string | null;
+  } | null;
   phone?: string | null;
   about?: string | null;
   slug: string;
@@ -44,7 +54,12 @@ function toChurchDTO(church: {
     values?: string | null;
     bannerEventId?: unknown;
   } | null;
-  contact?: { email?: string | null; whatsapp?: string | null } | null;
+  contact?: {
+    email?: string | null;
+    whatsapp?: string | null;
+    phone?: string | null;
+    socialLinks?: { platform: string; url: string }[] | null;
+  } | null;
   socialLinks?: { facebook?: string | null; instagram?: string | null; youtube?: string | null } | null;
   serviceSchedule?: { day: string; time: string; theme: string }[] | null;
   createdAt: Date;
@@ -54,6 +69,18 @@ function toChurchDTO(church: {
     name: church.name,
     logoUrl: church.logoUrl,
     address: church.address ?? undefined,
+    pastors: church.pastors ?? undefined,
+    addressDetails: church.addressDetails?.cep
+      ? {
+          cep: church.addressDetails.cep,
+          street: church.addressDetails.street ?? "",
+          number: church.addressDetails.number ?? "",
+          complement: church.addressDetails.complement ?? undefined,
+          neighborhood: church.addressDetails.neighborhood ?? undefined,
+          city: church.addressDetails.city ?? undefined,
+          state: church.addressDetails.state ?? undefined,
+        }
+      : undefined,
     phone: church.phone ?? undefined,
     about: church.about ?? undefined,
     slug: church.slug,
@@ -76,7 +103,12 @@ function toChurchDTO(church: {
         }
       : undefined,
     contact: church.contact
-      ? { email: church.contact.email ?? undefined, whatsapp: church.contact.whatsapp ?? undefined }
+      ? {
+          email: church.contact.email ?? undefined,
+          whatsapp: church.contact.whatsapp ?? undefined,
+          phone: church.contact.phone ?? undefined,
+          socialLinks: (church.contact.socialLinks ?? []).map((l) => ({ platform: l.platform, url: l.url })),
+        }
       : undefined,
     socialLinks: church.socialLinks
       ? {
@@ -94,6 +126,16 @@ export async function getChurch(churchId: string): Promise<ChurchDTO> {
   const church = await Church.findById(churchId);
 
   if (!church) {
+    throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
+  }
+
+  return toChurchDTO(church);
+}
+
+export async function getChurchForUser(churchId: string, slug: string): Promise<ChurchDTO> {
+  const church = await Church.findById(churchId);
+
+  if (!church || church.slug !== slug) {
     throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
   }
 
@@ -148,16 +190,22 @@ export async function registerChurch(data: RegisterChurchDTO): Promise<ChurchDTO
   return toChurchDTO(church);
 }
 
-export async function updateChurch(churchId: string, data: UpdateChurchDTO): Promise<ChurchDTO> {
+export async function updateChurch(
+  churchId: string,
+  data: UpdateChurchDTO,
+  slug?: string,
+): Promise<ChurchDTO> {
   const church = await Church.findById(churchId);
 
-  if (!church) {
+  if (!church || (slug !== undefined && church.slug !== slug)) {
     throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
   }
 
   if (data.name !== undefined) church.name = data.name;
   if (data.logoUrl !== undefined) church.logoUrl = data.logoUrl;
   if (data.address !== undefined) church.address = data.address;
+  if (data.pastors !== undefined) church.pastors = data.pastors;
+  if (data.addressDetails !== undefined) church.set("addressDetails", data.addressDetails);
   if (data.phone !== undefined) church.phone = data.phone;
   if (data.about !== undefined) church.about = data.about;
   if (data.settings !== undefined) {
@@ -178,7 +226,9 @@ export async function updateChurch(churchId: string, data: UpdateChurchDTO): Pro
     };
   }
   if (data.contact !== undefined) {
-    church.contact = { ...church.contact, ...data.contact };
+    for (const [key, value] of Object.entries(data.contact)) {
+      if (value !== undefined) church.set(`contact.${key}`, value);
+    }
   }
   if (data.socialLinks !== undefined) {
     church.socialLinks = { ...church.socialLinks, ...data.socialLinks };

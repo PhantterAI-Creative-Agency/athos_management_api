@@ -204,3 +204,64 @@ describe("PATCH /athos_adm/api/churches/me", () => {
     expect(response.body.data.settings.primaryColor).toBe("#ffffff");
   });
 });
+
+describe("GET/PATCH /athos_adm/api/churches/:slug (dados gerais)", () => {
+  it("rejeita acesso sem autenticação", async () => {
+    const response = await request(app).get("/athos_adm/api/churches/igreja-teste");
+
+    expect(response.status).toBe(401);
+  });
+
+  it("não expõe nem altera a igreja de outro slug", async () => {
+    const get = await request(app)
+      .get("/athos_adm/api/churches/outra-igreja")
+      .set("Authorization", `Bearer ${adminAccessToken}`);
+    const patch = await request(app)
+      .patch("/athos_adm/api/churches/outra-igreja")
+      .set("Authorization", `Bearer ${adminAccessToken}`)
+      .send({ pastors: "Pr. Invasor" });
+
+    expect(get.status).toBe(404);
+    expect(patch.status).toBe(404);
+  });
+
+  it("rejeita usuário sem role admin", async () => {
+    const response = await request(app)
+      .patch("/athos_adm/api/churches/igreja-teste")
+      .set("Authorization", `Bearer ${memberAccessToken}`)
+      .send({ pastors: "Pr. João" });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("salva e devolve pastores, endereço, telefone e redes sociais", async () => {
+    const patch = await request(app)
+      .patch("/athos_adm/api/churches/igreja-teste")
+      .set("Authorization", `Bearer ${adminAccessToken}`)
+      .send({
+        pastors: "Pr. João e Pra. Maria",
+        address: "Rua A, 10 - Centro, Cidade - SP",
+        addressDetails: { cep: "12345678", street: "Rua A", number: "10", city: "Cidade", state: "SP" },
+        contact: {
+          whatsapp: "12999999999",
+          phone: "1233333333",
+          socialLinks: [{ platform: "instagram", url: "https://instagram.com/igreja" }],
+        },
+      });
+
+    expect(patch.status).toBe(200);
+
+    const get = await request(app)
+      .get("/athos_adm/api/churches/igreja-teste")
+      .set("Authorization", `Bearer ${adminAccessToken}`);
+
+    expect(get.status).toBe(200);
+    expect(get.body.data.pastors).toBe("Pr. João e Pra. Maria");
+    expect(get.body.data.addressDetails).toMatchObject({ cep: "12345678", street: "Rua A", number: "10", state: "SP" });
+    expect(get.body.data.contact).toMatchObject({
+      whatsapp: "12999999999",
+      phone: "1233333333",
+      socialLinks: [{ platform: "instagram", url: "https://instagram.com/igreja" }],
+    });
+  });
+});
