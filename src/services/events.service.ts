@@ -17,6 +17,7 @@ function toEventDTO(event: {
   location?: string | null;
   price?: number | null;
   featured?: boolean | null;
+  hideTitle?: boolean | null;
 }): EventDTO {
   return {
     id: String(event._id),
@@ -27,6 +28,7 @@ function toEventDTO(event: {
     location: event.location ?? undefined,
     price: event.price ?? undefined,
     featured: event.featured ?? false,
+    hideTitle: event.hideTitle ?? false,
   };
 }
 
@@ -70,6 +72,7 @@ export async function createEvent(requester: AuthTokenPayload, data: CreateEvent
     location: data.location,
     price: data.price,
     featured: data.featured ?? false,
+    hideTitle: data.hideTitle ?? false,
   });
 
   return toEventDTO(event);
@@ -94,6 +97,7 @@ export async function updateEvent(
   if (data.location !== undefined) event.location = data.location;
   if (data.price !== undefined) event.price = data.price;
   if (data.featured !== undefined) event.featured = data.featured;
+  if (data.hideTitle !== undefined) event.hideTitle = data.hideTitle;
 
   await event.save();
 

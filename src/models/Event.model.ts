@@ -10,6 +10,7 @@ const eventSchema = new Schema(
     location: { type: String },
     price: { type: Number },
     featured: { type: Boolean, default: false },
+    hideTitle: { type: Boolean, default: false },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );
