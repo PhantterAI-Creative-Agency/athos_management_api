@@ -17,6 +17,7 @@ export const createEventSchema = z.object({
   location: z.string().optional(),
   price: z.number().optional(),
   featured: z.boolean().optional(),
+  hideTitle: z.boolean().optional(),
 });
 
 export type CreateEventDTO = z.infer<typeof createEventSchema>;
@@ -29,6 +30,7 @@ export const updateEventSchema = z.object({
   location: z.string().optional(),
   price: z.number().optional(),
   featured: z.boolean().optional(),
+  hideTitle: z.boolean().optional(),
 });
 
 export type UpdateEventDTO = z.infer<typeof updateEventSchema>;
@@ -42,4 +44,5 @@ export interface EventDTO {
   location?: string;
   price?: number;
   featured: boolean;
+  hideTitle: boolean;
 }
