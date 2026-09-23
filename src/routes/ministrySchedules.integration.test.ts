@@ -143,6 +143,18 @@ describe("PUT /athos_adm/api/ministries/:id/service-functions", () => {
     vocalFunctionId = response.body.data.find((f: { name: string }) => f.name === "Vocal").id;
   });
 
+  it("habilita o voluntário nas funções que ele pode exercer", async () => {
+    const response = await request(app)
+      .post(`/athos_adm/api/ministries/${ministryId}/volunteers`)
+      .set("Authorization", `Bearer ${adminAccessToken}`)
+      .send({ userId: volunteerId, functionIds: [instrumentoFunctionId, vocalFunctionId] });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.functionIds).toEqual(
+      expect.arrayContaining([instrumentoFunctionId, vocalFunctionId]),
+    );
+  });
+
   it("GET lista as funções para qualquer autenticado da igreja", async () => {
     const response = await request(app)
       .get(`/athos_adm/api/ministries/${ministryId}/service-functions`)

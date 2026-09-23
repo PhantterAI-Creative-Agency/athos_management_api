@@ -6,6 +6,7 @@ const ministryVolunteerSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     churchId: { type: Schema.Types.ObjectId, ref: "Church", required: true, index: true },
     role: { type: String },
+    functionIds: { type: [Schema.Types.ObjectId], default: [] },
     contractSigned: { type: Boolean, default: false },
     active: { type: Boolean, default: true },
     joinedAt: { type: Date, default: Date.now },

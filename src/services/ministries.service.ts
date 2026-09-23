@@ -31,6 +31,7 @@ type MinistryVolunteerDocumentLike = {
   ministryId: unknown;
   userId: unknown;
   role?: string | null;
+  functionIds?: unknown[];
   contractSigned: boolean;
   active: boolean;
   joinedAt: Date;
@@ -66,6 +67,7 @@ function toVolunteerDTO(volunteer: MinistryVolunteerDocumentLike): MinistryVolun
     ministryId: String(volunteer.ministryId),
     userId: String(volunteer.userId),
     role: volunteer.role ?? undefined,
+    functionIds: (volunteer.functionIds ?? []).map(String),
     contractSigned: volunteer.contractSigned,
     active: volunteer.active,
     joinedAt: volunteer.joinedAt.toISOString(),
@@ -274,6 +276,17 @@ export async function addVolunteer(
 
   volunteer.active = true;
   if (data.role !== undefined) volunteer.role = data.role;
+  if (data.functionIds !== undefined) {
+    const validFunctionIds = new Set(ministry.serviceFunctions.map((item) => String(item._id)));
+
+    for (const functionId of data.functionIds) {
+      if (!validFunctionIds.has(functionId)) {
+        throw new AppError(400, "INVALID_FUNCTION", "Função de escala inválida para este ministério");
+      }
+    }
+
+    volunteer.set("functionIds", data.functionIds);
+  }
 
   await volunteer.save();
 

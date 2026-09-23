@@ -68,10 +68,12 @@ async function buildAssignments(
 ) {
   const functionsById = new Map(ministry.serviceFunctions.map((item) => [String(item._id), item]));
 
-  const activeVolunteerIds = new Set(
-    (
-      await MinistryVolunteer.find({ ministryId: ministry._id, active: true }).select("userId")
-    ).map((record) => String(record.userId)),
+  const activeVolunteers = await MinistryVolunteer.find({ ministryId: ministry._id, active: true }).select(
+    "userId functionIds",
+  );
+
+  const functionIdsByUserId = new Map(
+    activeVolunteers.map((record) => [String(record.userId), new Set(record.functionIds.map(String))]),
   );
 
   return assignments.map((assignment) => {
@@ -82,11 +84,21 @@ async function buildAssignments(
     }
 
     for (const volunteerId of assignment.volunteerIds) {
-      if (!activeVolunteerIds.has(volunteerId)) {
+      const volunteerFunctionIds = functionIdsByUserId.get(volunteerId);
+
+      if (!volunteerFunctionIds) {
         throw new AppError(
           400,
           "INVALID_VOLUNTEER",
           "Um dos voluntários informados não é voluntário ativo deste ministério",
+        );
+      }
+
+      if (!volunteerFunctionIds.has(assignment.functionId)) {
+        throw new AppError(
+          400,
+          "INVALID_VOLUNTEER",
+          "Um dos voluntários informados não está habilitado para esta função",
         );
       }
     }
