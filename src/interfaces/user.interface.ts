@@ -91,6 +91,7 @@ export interface UserDTO {
   birthDate?: string;
   roles: Role[];
   active: boolean;
+  ministries?: { id: string; name: string }[];
   professionalData?: { company?: string; role?: string };
   familyData?: {
     spouseId?: string;
