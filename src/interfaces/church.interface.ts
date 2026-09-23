@@ -71,7 +71,6 @@ const serviceScheduleItemSchema = z.object({
 export const updateChurchSchema = z.object({
   name: z.string().min(1).optional(),
   logoUrl: z.string().min(1).optional(),
-  pastors: z.string().min(1).optional(),
   address: z.string().optional(),
   addressDetails: addressDetailsSchema.optional(),
   phone: z.string().min(1).optional(),
@@ -98,7 +97,6 @@ export interface ChurchDTO {
   name: string;
   logoUrl: string;
   address?: string;
-  pastors?: string;
   addressDetails?: {
     cep: string;
     street: string;

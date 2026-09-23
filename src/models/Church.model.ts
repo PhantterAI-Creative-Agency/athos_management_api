@@ -5,7 +5,6 @@ const churchSchema = new Schema(
     name: { type: String, required: true },
     logoUrl: { type: String, required: true },
     address: { type: String },
-    pastors: { type: String },
     addressDetails: {
       cep: { type: String },
       street: { type: String },
