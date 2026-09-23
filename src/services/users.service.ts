@@ -7,7 +7,7 @@ import { hashPassword } from "../helpers/password.helper";
 import type { AuthTokenPayload } from "../helpers/jwt.helper";
 import { calculateAge, isFamilyManager, tryLinkSpouse } from "../helpers/family.helper";
 import { AppError } from "../middlewares/errorHandler";
-import type { CreateChildDTO, CreateUserDTO, UpdateUserDTO, UserDTO } from "../interfaces/user.interface";
+import type { CreateChildDTO, CreateUserDTO, Gender, UpdateUserDTO, UserDTO } from "../interfaces/user.interface";
 
 type UserDocumentLike = {
   _id: unknown;
@@ -18,6 +18,7 @@ type UserDocumentLike = {
   photoUrl?: string | null;
   bio?: string | null;
   birthDate?: Date | null;
+  gender?: Gender | null;
   roles: string[];
   active: boolean;
   pendingApproval?: boolean | null;
@@ -43,6 +44,7 @@ function toUserDTO(user: UserDocumentLike, ministries?: { id: string; name: stri
     photoUrl: user.photoUrl ?? undefined,
     bio: user.bio ?? undefined,
     birthDate: user.birthDate ? user.birthDate.toISOString() : undefined,
+    gender: user.gender ?? undefined,
     roles: user.roles as UserDTO["roles"],
     active: user.active,
     status: user.active ? "active" : user.pendingApproval ? "pending" : "inactive",
@@ -124,6 +126,7 @@ export async function createUser(data: CreateUserDTO): Promise<UserDTO> {
     email: data.email.toLowerCase(),
     passwordHash,
     phone: data.phone,
+    gender: data.gender,
     roles: ["visitor"],
   });
 
@@ -255,6 +258,7 @@ export async function updateUser(
 
   if (data.name !== undefined) user.name = data.name;
   if (data.phone !== undefined) user.phone = data.phone;
+  if (data.gender !== undefined) user.gender = data.gender;
   if (data.photoUrl !== undefined) user.photoUrl = data.photoUrl;
   if (data.bio !== undefined) user.bio = data.bio;
   if (data.birthDate !== undefined) user.birthDate = new Date(data.birthDate);

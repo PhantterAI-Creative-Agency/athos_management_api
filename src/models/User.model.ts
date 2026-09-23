@@ -1,5 +1,6 @@
 import { Schema, model, Types, type InferSchemaType } from "mongoose";
 import { ROLES } from "../helpers/jwt.helper";
+import { GENDERS } from "../interfaces/user.interface";
 
 const userSchema = new Schema(
   {
@@ -28,6 +29,7 @@ const userSchema = new Schema(
     photoUrl: { type: String },
     bio: { type: String },
     birthDate: { type: Date },
+    gender: { type: String, enum: GENDERS },
     roles: { type: [String], enum: ROLES, default: ["visitor"] },
     active: { type: Boolean, default: true },
     // true enquanto o cadastro feito pelo site aguarda a primeira ativação por um administrador.
