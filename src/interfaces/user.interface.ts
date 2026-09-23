@@ -1,12 +1,16 @@
 import { z } from "zod";
 import { ROLES, type Role } from "../helpers/jwt.helper";
 
+export const GENDERS = ["M", "F"] as const;
+export type Gender = (typeof GENDERS)[number];
+
 export const createUserSchema = z.object({
   churchId: z.string().min(1, "churchId é obrigatório"),
   name: z.string().min(1, "Nome é obrigatório"),
   email: z.string().email("E-mail inválido"),
   password: z.string().min(8, "Senha deve ter ao menos 8 caracteres"),
   phone: z.string().optional(),
+  gender: z.enum(GENDERS).optional(),
 });
 
 export type CreateUserDTO = z.infer<typeof createUserSchema>;
@@ -67,6 +71,7 @@ const medicalRecordSchema = z.object({
 export const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
   phone: z.string().optional(),
+  gender: z.enum(GENDERS).optional(),
   photoUrl: z.string().max(2_000_000, "Imagem muito grande").optional(),
   bio: z.string().optional(),
   birthDate: z.string().optional(),
@@ -91,6 +96,7 @@ export interface UserDTO {
   photoUrl?: string;
   bio?: string;
   birthDate?: string;
+  gender?: Gender;
   roles: Role[];
   active: boolean;
   status: UserStatus;

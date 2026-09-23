@@ -303,6 +303,22 @@ describe("PATCH /athos_adm/api/users/:id", () => {
     expect(response.body.data.bio).toBe("Nova bio");
   });
 
+  it("permite que o próprio usuário defina o sexo e o retorna nas consultas seguintes", async () => {
+    const response = await request(app)
+      .patch(`/athos_adm/api/users/${memberId}`)
+      .set("Authorization", `Bearer ${memberAccessToken}`)
+      .send({ gender: "F" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.gender).toBe("F");
+
+    const getResponse = await request(app)
+      .get(`/athos_adm/api/users/${memberId}`)
+      .set("Authorization", `Bearer ${memberAccessToken}`);
+
+    expect(getResponse.body.data.gender).toBe("F");
+  });
+
   it("permite que o próprio usuário se inative", async () => {
     const response = await request(app)
       .patch(`/athos_adm/api/users/${memberId}`)
