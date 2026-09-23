@@ -80,6 +80,8 @@ export const updateUserSchema = z.object({
 
 export type UpdateUserDTO = z.infer<typeof updateUserSchema>;
 
+export type UserStatus = "active" | "pending" | "inactive";
+
 export interface UserDTO {
   id: string;
   churchId: string;
@@ -91,6 +93,7 @@ export interface UserDTO {
   birthDate?: string;
   roles: Role[];
   active: boolean;
+  status: UserStatus;
   ministries?: { id: string; name: string }[];
   professionalData?: { company?: string; role?: string };
   familyData?: {

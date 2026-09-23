@@ -146,6 +146,7 @@ describe("POST /athos_adm/api/auth/register", () => {
     const { User } = await import("../models/User.model");
     const user = await User.findOne({ email: "novo@teste.com" });
     expect(user?.active).toBe(false);
+    expect(user?.pendingApproval).toBe(true);
     expect(user?.isChurchMember).toBe(true);
     expect(user?.address?.cep).toBe("09015000");
   });

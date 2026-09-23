@@ -311,6 +311,7 @@ describe("PATCH /athos_adm/api/users/:id", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.data.active).toBe(false);
+    expect(response.body.data.status).toBe("inactive");
 
     await request(app)
       .patch(`/athos_adm/api/users/${memberId}`)

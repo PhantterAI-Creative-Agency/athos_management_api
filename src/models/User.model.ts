@@ -30,6 +30,8 @@ const userSchema = new Schema(
     birthDate: { type: Date },
     roles: { type: [String], enum: ROLES, default: ["visitor"] },
     active: { type: Boolean, default: true },
+    // true enquanto o cadastro feito pelo site aguarda a primeira ativação por um administrador.
+    pendingApproval: { type: Boolean, default: false },
     professionalData: {
       company: { type: String },
       role: { type: String },

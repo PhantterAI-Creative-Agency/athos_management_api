@@ -20,6 +20,7 @@ type UserDocumentLike = {
   birthDate?: Date | null;
   roles: string[];
   active: boolean;
+  pendingApproval?: boolean | null;
   professionalData?: { company?: string | null; role?: string | null } | null;
   familyData?: {
     spouseId?: unknown;
@@ -44,6 +45,7 @@ function toUserDTO(user: UserDocumentLike, ministries?: { id: string; name: stri
     birthDate: user.birthDate ? user.birthDate.toISOString() : undefined,
     roles: user.roles as UserDTO["roles"],
     active: user.active,
+    status: user.active ? "active" : user.pendingApproval ? "pending" : "inactive",
     ministries,
     professionalData: user.professionalData
       ? { company: user.professionalData.company ?? undefined, role: user.professionalData.role ?? undefined }
@@ -293,6 +295,7 @@ export async function updateUser(
       );
     }
     user.active = data.active;
+    if (data.active) user.pendingApproval = false;
   }
 
   await user.save();
