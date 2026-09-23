@@ -219,7 +219,7 @@ describe("GET/PATCH /athos_adm/api/churches/:slug (dados gerais)", () => {
     const patch = await request(app)
       .patch("/athos_adm/api/churches/outra-igreja")
       .set("Authorization", `Bearer ${adminAccessToken}`)
-      .send({ pastors: "Pr. Invasor" });
+      .send({ address: "Rua Invasora, 1" });
 
     expect(get.status).toBe(404);
     expect(patch.status).toBe(404);
@@ -229,17 +229,16 @@ describe("GET/PATCH /athos_adm/api/churches/:slug (dados gerais)", () => {
     const response = await request(app)
       .patch("/athos_adm/api/churches/igreja-teste")
       .set("Authorization", `Bearer ${memberAccessToken}`)
-      .send({ pastors: "Pr. João" });
+      .send({ address: "Rua B, 20" });
 
     expect(response.status).toBe(403);
   });
 
-  it("salva e devolve pastores, endereço, telefone e redes sociais", async () => {
+  it("salva e devolve endereço, telefone e redes sociais", async () => {
     const patch = await request(app)
       .patch("/athos_adm/api/churches/igreja-teste")
       .set("Authorization", `Bearer ${adminAccessToken}`)
       .send({
-        pastors: "Pr. João e Pra. Maria",
         address: "Rua A, 10 - Centro, Cidade - SP",
         addressDetails: { cep: "12345678", street: "Rua A", number: "10", city: "Cidade", state: "SP" },
         contact: {
@@ -256,7 +255,6 @@ describe("GET/PATCH /athos_adm/api/churches/:slug (dados gerais)", () => {
       .set("Authorization", `Bearer ${adminAccessToken}`);
 
     expect(get.status).toBe(200);
-    expect(get.body.data.pastors).toBe("Pr. João e Pra. Maria");
     expect(get.body.data.addressDetails).toMatchObject({ cep: "12345678", street: "Rua A", number: "10", state: "SP" });
     expect(get.body.data.contact).toMatchObject({
       whatsapp: "12999999999",

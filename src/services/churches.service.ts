@@ -27,7 +27,6 @@ function toChurchDTO(church: {
   name: string;
   logoUrl: string;
   address?: string | null;
-  pastors?: string | null;
   addressDetails?: {
     cep?: string | null;
     street?: string | null;
@@ -69,7 +68,6 @@ function toChurchDTO(church: {
     name: church.name,
     logoUrl: church.logoUrl,
     address: church.address ?? undefined,
-    pastors: church.pastors ?? undefined,
     addressDetails: church.addressDetails?.cep
       ? {
           cep: church.addressDetails.cep,
@@ -204,7 +202,6 @@ export async function updateChurch(
   if (data.name !== undefined) church.name = data.name;
   if (data.logoUrl !== undefined) church.logoUrl = data.logoUrl;
   if (data.address !== undefined) church.address = data.address;
-  if (data.pastors !== undefined) church.pastors = data.pastors;
   if (data.addressDetails !== undefined) church.set("addressDetails", data.addressDetails);
   if (data.phone !== undefined) church.phone = data.phone;
   if (data.about !== undefined) church.about = data.about;
