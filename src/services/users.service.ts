@@ -1,5 +1,8 @@
+import { Types } from "mongoose";
 import { Church } from "../models/Church.model";
 import { User } from "../models/User.model";
+import { Ministry } from "../models/Ministry.model";
+import { MinistryVolunteer } from "../models/MinistryVolunteer.model";
 import { hashPassword } from "../helpers/password.helper";
 import type { AuthTokenPayload } from "../helpers/jwt.helper";
 import { calculateAge, isFamilyManager, tryLinkSpouse } from "../helpers/family.helper";
@@ -30,7 +33,7 @@ type UserDocumentLike = {
   updatedAt: Date;
 };
 
-function toUserDTO(user: UserDocumentLike): UserDTO {
+function toUserDTO(user: UserDocumentLike, ministries?: { id: string; name: string }[]): UserDTO {
   return {
     id: String(user._id),
     churchId: String(user.churchId),
@@ -43,6 +46,7 @@ function toUserDTO(user: UserDocumentLike): UserDTO {
     roles: user.roles as UserDTO["roles"],
     active: user.active,
     status: user.active ? "active" : user.pendingApproval ? "pending" : "inactive",
+    ministries,
     professionalData: user.professionalData
       ? { company: user.professionalData.company ?? undefined, role: user.professionalData.role ?? undefined }
       : undefined,
@@ -66,6 +70,29 @@ function toUserDTO(user: UserDocumentLike): UserDTO {
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
+}
+
+async function getMinistriesByUserIds(
+  churchId: Types.ObjectId | string,
+  userIds: (Types.ObjectId | string)[],
+): Promise<Map<string, { id: string; name: string }[]>> {
+  const volunteers = await MinistryVolunteer.find({ churchId, userId: { $in: userIds }, active: true }).lean();
+
+  const ministryIds = [...new Set(volunteers.map((v) => String(v.ministryId)))];
+  const ministries = await Ministry.find({ _id: { $in: ministryIds } })
+    .select("name")
+    .lean();
+  const ministryNameById = new Map(ministries.map((m) => [String(m._id), m.name]));
+
+  const ministriesByUser = new Map<string, { id: string; name: string }[]>();
+  for (const volunteer of volunteers) {
+    const userId = String(volunteer.userId);
+    const list = ministriesByUser.get(userId) ?? [];
+    list.push({ id: String(volunteer.ministryId), name: ministryNameById.get(String(volunteer.ministryId)) ?? "" });
+    ministriesByUser.set(userId, list);
+  }
+
+  return ministriesByUser;
 }
 
 function isDevAdmin(requester: AuthTokenPayload): boolean {
@@ -163,7 +190,12 @@ export async function listUsers(requester: AuthTokenPayload, churchId?: string):
   const targetChurchId = isDevAdmin(requester) && churchId ? churchId : requester.churchId;
   const users = await User.find({ churchId: targetChurchId }).sort({ name: 1 });
 
-  return users.map(toUserDTO);
+  const ministriesByUser = await getMinistriesByUserIds(
+    targetChurchId,
+    users.map((u) => u._id),
+  );
+
+  return users.map((user) => toUserDTO(user, ministriesByUser.get(String(user._id)) ?? []));
 }
 
 export async function getUser(requester: AuthTokenPayload, userId: string): Promise<UserDTO> {
@@ -181,7 +213,9 @@ export async function getUser(requester: AuthTokenPayload, userId: string): Prom
     throw new AppError(404, "USER_NOT_FOUND", "Usuário não encontrado");
   }
 
-  return toUserDTO(user);
+  const ministriesByUser = await getMinistriesByUserIds(user.churchId, [user._id]);
+
+  return toUserDTO(user, ministriesByUser.get(String(user._id)) ?? []);
 }
 
 export async function updateUser(
