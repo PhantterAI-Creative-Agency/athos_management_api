@@ -32,6 +32,8 @@ router.get(
   usersController.list,
 );
 
+router.delete("/inactive", authenticate, withRole(["devAdmin"]), usersController.removeInactive);
+
 router.get("/:id", authenticate, withSelfFamilyOrRole(["admin", "devAdmin"]), usersController.getById);
 
 router.post(

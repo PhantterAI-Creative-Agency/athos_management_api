@@ -221,6 +221,16 @@ export async function getUser(requester: AuthTokenPayload, userId: string): Prom
   return toUserDTO(user, ministriesByUser.get(String(user._id)) ?? []);
 }
 
+export async function deleteInactiveUsers(requester: AuthTokenPayload): Promise<{ deletedCount: number }> {
+  if (!isDevAdmin(requester)) {
+    throw new AppError(403, "FORBIDDEN", "Apenas administradores da plataforma (devAdmin) podem executar esta ação");
+  }
+
+  const result = await User.deleteMany({ active: false });
+
+  return { deletedCount: result.deletedCount ?? 0 };
+}
+
 export async function updateUser(
   requester: AuthTokenPayload,
   userId: string,

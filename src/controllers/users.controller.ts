@@ -45,6 +45,16 @@ export async function createChild(req: Request, res: Response, next: NextFunctio
   }
 }
 
+export async function removeInactive(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const result = await usersService.deleteInactiveUsers(req.user!);
+    await auditLog("DELETE", "User", undefined, { deletedCount: result.deletedCount, filter: "active:false" }, req);
+    sendSuccess(res, result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function update(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = req.validated?.body as UpdateUserDTO;
