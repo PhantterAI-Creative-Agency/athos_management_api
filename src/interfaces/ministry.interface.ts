@@ -28,6 +28,7 @@ export type ListMinistriesQueryDTO = z.infer<typeof listMinistriesQuerySchema>;
 export const addVolunteerSchema = z.object({
   userId: z.string().optional(),
   role: z.string().optional(),
+  functionIds: z.array(z.string()).optional(),
 });
 
 export type AddVolunteerDTO = z.infer<typeof addVolunteerSchema>;
@@ -67,6 +68,7 @@ export interface MinistryVolunteerDTO {
   ministryId: string;
   userId: string;
   role?: string;
+  functionIds: string[];
   contractSigned: boolean;
   active: boolean;
   joinedAt: string;
