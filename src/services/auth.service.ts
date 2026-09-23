@@ -96,6 +96,7 @@ export async function register(data: RegisterDTO): Promise<string> {
       address,
       roles: ["visitor"],
       active: false,
+      pendingApproval: true,
     });
   } catch (error) {
     // Corrida entre as checagens acima e os índices únicos.
