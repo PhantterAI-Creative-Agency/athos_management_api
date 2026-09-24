@@ -3,6 +3,7 @@ import { randomInt } from "node:crypto";
 import { User } from "../models/User.model";
 import { enqueuePasswordResetEmail } from "../jobs/passwordResetEmail.job";
 import { enqueueRegistrationEmail } from "../jobs/registrationEmail.job";
+import { notifyUserAccount } from "../jobs/userAccountEmail.job";
 import { Church } from "../models/Church.model";
 import { Ministry } from "../models/Ministry.model";
 import { env } from "../config/env";
@@ -120,6 +121,14 @@ export async function register(data: RegisterDTO): Promise<string> {
     // O cadastro já foi salvo; falha no aviso não deve derrubar a resposta ao usuário.
     console.error("[registration-email] falha ao enviar aviso", error);
   }
+
+  await notifyUserAccount({
+    to: email,
+    name: data.name,
+    churchName: church.name,
+    action: "created",
+    pendingApproval: true,
+  });
 
   return String(user._id);
 }

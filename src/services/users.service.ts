@@ -7,6 +7,7 @@ import { hashPassword } from "../helpers/password.helper";
 import type { AuthTokenPayload } from "../helpers/jwt.helper";
 import { calculateAge, isFamilyManager, tryLinkSpouse } from "../helpers/family.helper";
 import { AppError } from "../middlewares/errorHandler";
+import { notifyUserAccount } from "../jobs/userAccountEmail.job";
 import type { CreateChildDTO, CreateUserDTO, Gender, UpdateUserDTO, UserDTO } from "../interfaces/user.interface";
 
 type UserDocumentLike = {
@@ -97,6 +98,11 @@ async function getMinistriesByUserIds(
   return ministriesByUser;
 }
 
+async function getChurchName(churchId: unknown): Promise<string> {
+  const church = await Church.findById(churchId).select("name").lean();
+  return church?.name ?? "Igreja";
+}
+
 function isDevAdmin(requester: AuthTokenPayload): boolean {
   return requester.roles.includes("devAdmin");
 }
@@ -131,6 +137,8 @@ export async function createUser(data: CreateUserDTO): Promise<UserDTO> {
   });
 
   await tryLinkSpouse(user);
+
+  await notifyUserAccount({ to: user.email, name: user.name, churchName: church.name, action: "created" });
 
   return toUserDTO(user);
 }
@@ -185,6 +193,13 @@ export async function createChild(
 
   parent.set("familyData.childrenIds", [...(parent.familyData?.childrenIds ?? []), child._id]);
   await parent.save();
+
+  await notifyUserAccount({
+    to: child.email,
+    name: child.name,
+    churchName: await getChurchName(child.churchId),
+    action: "created",
+  });
 
   return toUserDTO(child);
 }
@@ -317,6 +332,13 @@ export async function updateUser(
   if (data.phone !== undefined) {
     await tryLinkSpouse(user);
   }
+
+  await notifyUserAccount({
+    to: user.email,
+    name: user.name,
+    churchName: await getChurchName(user.churchId),
+    action: "updated",
+  });
 
   return toUserDTO(user);
 }
