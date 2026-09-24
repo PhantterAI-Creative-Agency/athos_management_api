@@ -49,6 +49,25 @@ const churchSchema = new Schema(
       instagram: { type: String },
       youtube: { type: String },
     },
+    footerWidgets: {
+      type: [
+        {
+          title: { type: String, default: "" },
+          items: [
+            {
+              type: { type: String, enum: ["text", "link", "image"], required: true },
+              text: { type: String },
+              url: { type: String },
+              imageUrl: { type: String },
+              icon: { type: String },
+              _id: false,
+            },
+          ],
+          _id: false,
+        },
+      ],
+      default: undefined,
+    },
     serviceSchedule: [
       {
         day: { type: String, required: true },

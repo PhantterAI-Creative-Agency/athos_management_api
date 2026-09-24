@@ -68,6 +68,19 @@ const serviceScheduleItemSchema = z.object({
   theme: z.string().min(1),
 });
 
+const footerWidgetItemSchema = z.object({
+  type: z.enum(["text", "link", "image"]),
+  text: z.string().max(2000).optional(),
+  url: z.string().max(2000).optional(),
+  imageUrl: z.string().max(2_000_000, "Imagem muito grande").optional(),
+  icon: z.string().max(50).optional(),
+});
+
+const footerWidgetSchema = z.object({
+  title: z.string().max(200),
+  items: z.array(footerWidgetItemSchema).max(50),
+});
+
 export const updateChurchSchema = z.object({
   name: z.string().min(1).optional(),
   logoUrl: z.string().min(1).optional(),
@@ -88,9 +101,25 @@ export const updateChurchSchema = z.object({
   contact: contactSchema.optional(),
   socialLinks: socialLinksSchema.optional(),
   serviceSchedule: z.array(serviceScheduleItemSchema).optional(),
+  footerWidgets: z.array(footerWidgetSchema).max(12).optional(),
 });
 
 export type UpdateChurchDTO = z.infer<typeof updateChurchSchema>;
+
+export type FooterWidgetItemType = "text" | "link" | "image";
+
+export interface FooterWidgetItemDTO {
+  type: FooterWidgetItemType;
+  text?: string;
+  url?: string;
+  imageUrl?: string;
+  icon?: string;
+}
+
+export interface FooterWidgetDTO {
+  title: string;
+  items: FooterWidgetItemDTO[];
+}
 
 export interface ChurchDTO {
   id: string;
@@ -135,5 +164,7 @@ export interface ChurchDTO {
     youtube?: string;
   };
   serviceSchedule?: { day: string; time: string; theme: string }[];
+  /** Widgets do rodapé do site. `undefined` = nunca configurado (o client usa o rodapé padrão). */
+  footerWidgets?: FooterWidgetDTO[];
   createdAt: string;
 }
