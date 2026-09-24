@@ -3,6 +3,8 @@ import { Church } from "../models/Church.model";
 import { AppError } from "../middlewares/errorHandler";
 import type {
   ChurchDTO,
+  FooterWidgetDTO,
+  FooterWidgetItemType,
   ChurchSearchResultDTO,
   RegisterChurchDTO,
   UpdateChurchDTO,
@@ -61,6 +63,20 @@ function toChurchDTO(church: {
   } | null;
   socialLinks?: { facebook?: string | null; instagram?: string | null; youtube?: string | null } | null;
   serviceSchedule?: { day: string; time: string; theme: string }[] | null;
+  footerWidgets?:
+    | {
+        title?: string | null;
+        items?:
+          | {
+              type: string;
+              text?: string | null;
+              url?: string | null;
+              imageUrl?: string | null;
+              icon?: string | null;
+            }[]
+          | null;
+      }[]
+    | null;
   createdAt: Date;
 }): ChurchDTO {
   return {
@@ -116,6 +132,20 @@ function toChurchDTO(church: {
         }
       : undefined,
     serviceSchedule: church.serviceSchedule ?? undefined,
+    footerWidgets: church.footerWidgets
+      ? church.footerWidgets.map(
+          (widget): FooterWidgetDTO => ({
+            title: widget.title ?? "",
+            items: (widget.items ?? []).map((item) => ({
+              type: item.type as FooterWidgetItemType,
+              text: item.text ?? undefined,
+              url: item.url ?? undefined,
+              imageUrl: item.imageUrl ?? undefined,
+              icon: item.icon ?? undefined,
+            })),
+          }),
+        )
+      : undefined,
     createdAt: church.createdAt.toISOString(),
   };
 }
@@ -232,6 +262,9 @@ export async function updateChurch(
   }
   if (data.serviceSchedule !== undefined) {
     church.set("serviceSchedule", data.serviceSchedule);
+  }
+  if (data.footerWidgets !== undefined) {
+    church.set("footerWidgets", data.footerWidgets);
   }
 
   await church.save();
