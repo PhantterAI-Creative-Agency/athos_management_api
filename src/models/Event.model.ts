@@ -11,6 +11,7 @@ const eventSchema = new Schema(
     price: { type: Number },
     featured: { type: Boolean, default: false },
     hideTitle: { type: Boolean, default: false },
+    registrationUrl: { type: String },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );

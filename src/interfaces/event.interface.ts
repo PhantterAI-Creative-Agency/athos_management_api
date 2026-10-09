@@ -18,6 +18,7 @@ export const createEventSchema = z.object({
   price: z.number().optional(),
   featured: z.boolean().optional(),
   hideTitle: z.boolean().optional(),
+  registrationUrl: z.union([z.literal(""), z.string().url("Link de inscrição inválido")]).optional(),
 });
 
 export type CreateEventDTO = z.infer<typeof createEventSchema>;
@@ -31,6 +32,7 @@ export const updateEventSchema = z.object({
   price: z.number().optional(),
   featured: z.boolean().optional(),
   hideTitle: z.boolean().optional(),
+  registrationUrl: z.union([z.literal(""), z.string().url("Link de inscrição inválido")]).optional(),
 });
 
 export type UpdateEventDTO = z.infer<typeof updateEventSchema>;
@@ -45,4 +47,5 @@ export interface EventDTO {
   price?: number;
   featured: boolean;
   hideTitle: boolean;
+  registrationUrl?: string;
 }
