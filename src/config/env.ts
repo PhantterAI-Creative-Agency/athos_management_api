@@ -31,6 +31,9 @@ const envSchema = z.object({
   GMAIL_APP_PASSWORD: z.string().optional(),
   // E-mails (separados por vírgula) do grupo que administra o site e recebe avisos de novos cadastros.
   REGISTRATION_NOTIFY_EMAILS: z.string().default(""),
+  // Pasta onde ficam os arquivos enviados (áudios da rádio). Na Hostinger, use um caminho fora da pasta do deploy.
+  UPLOAD_DIR: z.string().default(path.resolve(process.cwd(), "uploads")),
+  RADIO_MAX_UPLOAD_MB: z.coerce.number().positive().default(100),
 });
 
 const parsed = envSchema.safeParse(process.env);
