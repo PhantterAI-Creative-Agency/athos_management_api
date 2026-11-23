@@ -2,10 +2,15 @@ import { createApp } from "./app";
 import { connectDB } from "./config/mongoose";
 import { env } from "./config/env";
 import { migrateLegacyJingles } from "./services/radio.service";
+import { scheduleMercadoPagoTokenRefresh } from "./jobs/mercadopagoTokenRefresh.job";
 
 async function bootstrap(): Promise<void> {
   await connectDB();
   await migrateLegacyJingles().catch((error) => console.error("Falha ao migrar vinhetas antigas", error));
+
+  await scheduleMercadoPagoTokenRefresh().catch((error) =>
+    console.error("Falha ao agendar a renovação de tokens do Mercado Pago", error),
+  );
 
   const app = createApp();
 

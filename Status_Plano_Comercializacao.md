@@ -2,7 +2,7 @@
 
 **Plano:** [`PLANO_Comercializacao.md`](./PLANO_Comercializacao.md)
 **Requisitos:** [`URS_Comercializacao.md`](./URS_Comercializacao.md)
-**Última atualização:** 23/11/2026 (fim da Sprint 3)
+**Última atualização:** 23/11/2026 (fim da Sprint 4)
 
 > **Como atualizar (ao final de cada sprint):**
 > 1. Marque as tarefas concluídas com `[x]` e as parciais com `[~]`.
@@ -23,7 +23,7 @@
 | 1 | Termos, Política, Contrato e DPA | Concluída (exceto revisão jurídica) | 23/11/2026 | 23/11/2026 | 9/10 |
 | 2 | Consentimento dos membros (LGPD) | Concluída | 23/11/2026 | 23/11/2026 | 8/8 |
 | 3 | PIX provisório e fim do fluxo simulado | Concluída | 23/11/2026 | 23/11/2026 | 7/7 |
-| 4 | Mercado Pago: OAuth | Não iniciada | — | — | 0/9 |
+| 4 | Mercado Pago: OAuth | Concluída (falta configurar a aplicação no Mercado Pago) | 23/11/2026 | 23/11/2026 | 8/9 |
 | 5 | Mercado Pago: PIX e webhook | Não iniciada | — | — | 0/11 |
 | 6 | Rádio opcional com aceite | Não iniciada | — | — | 0/6 |
 | 7 | Multi-igreja: temas e onboarding | Não iniciada | — | — | 0/10 |
@@ -104,15 +104,17 @@
 
 ## Sprint 4 — Mercado Pago: OAuth
 
-- [ ] 4.1 Aplicação no Mercado Pago + variáveis de ambiente
-- [ ] 4.2 Model `PaymentAccount`
-- [ ] 4.3 Helper de criptografia
-- [ ] 4.4 Rota `connect` com `state` assinado
-- [ ] 4.5 Rota `callback`
-- [ ] 4.6 Job de renovação de token
-- [ ] 4.7 Rotas de status e desconexão
-- [ ] 4.8 Card "Conectar Mercado Pago" no painel
-- [ ] 4.9 Testes
+- [~] 4.1 Variáveis de ambiente prontas (`MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_REDIRECT_URI`, `MP_USE_PKCE`, `ADMIN_PANEL_URL`, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET`). **Pendente (ação do Rodrigo):** criar a aplicação no painel de desenvolvedores do Mercado Pago, cadastrar a URL de redirecionamento e ativar o PKCE
+- [x] 4.2 Model `PaymentAccount` (tokens criptografados, `select: false`) + `OAuthState` (state de uso único, TTL de 10 min)
+- [x] 4.3 Helper de criptografia AES-256-GCM (`src/helpers/crypto.helper.ts`)
+- [x] 4.4 `GET /payments/mercadopago/connect`: state aleatório de uso único guardado no banco + PKCE S256 (code_verifier criptografado, nunca sai do servidor)
+- [x] 4.5 `GET /payments/mercadopago/callback`: valida e consome o state, troca o código, grava a conta e volta ao painel com o resultado
+- [x] 4.6 Renovação diária: BullMQ às 04:17 quando há Redis, ou `POST /internal/cron/mercadopago-refresh-tokens` (Bearer `CRON_SECRET`) num cron da Hostinger. Renova com menos de 30 dias para vencer; recusa do Mercado Pago marca "reconectar"
+- [x] 4.7 `GET /payments/mercadopago/status` e `DELETE /payments/mercadopago`
+- [x] 4.8 Card "Mercado Pago" no painel (página Ofertas), com conectar, status, aviso de reconexão e desconectar
+- [x] 4.9 Testes: `mercadopago.integration.test.ts` (18) + `crypto.helper.test.ts` (4)
+
+**Validação:** suíte da API: 463 testes. Fluxo ponta a ponta no navegador contra um servidor local que imita o OAuth do Mercado Pago: clicar em Conectar → autorização → retorno ao painel → "Conectada" (PKCE conferido pelo servidor falso) → desconectar. **Ainda não testado contra o Mercado Pago real**, porque depende da aplicação (4.1).
 
 ## Sprint 5 — Mercado Pago: PIX e webhook
 
@@ -194,6 +196,9 @@
 | 23/11/2026 | 3 | O QR Code é gerado na API (PNG em data URL) para o site; o app desenha o QR a partir do copia e cola (já tinha `react-native-qrcode-svg`). |
 | 23/11/2026 | 3 | Oferta por PIX estático **não cria registro** de oferta (não há como confirmar). O histórico mostra só ofertas confirmadas pelo sistema; a tela avisa isso. |
 | 23/11/2026 | 3 | Inscrição em evento pago sem pagamento on-line: fica "registrada" e o PIX leva o id da inscrição no campo txid, para a secretaria conferir no extrato. Sem chave cadastrada, a inscrição é aceita e o membro é orientado a combinar com a secretaria. |
+| 23/11/2026 | 4 | O `state` do OAuth é um valor aleatório guardado no banco (uso único, 10 min), e não um valor assinado: assim também guardamos o code_verifier do PKCE no servidor, como recomenda a documentação ("state sem dados sensíveis"). |
+| 23/11/2026 | 4 | O Mercado Pago não documenta endpoint de revogação. "Desconectar" apaga os tokens do nosso lado; o painel orienta o admin a remover a aplicação também na conta dele. |
+| 23/11/2026 | 4 | Conectar a conta **ainda não ativa** a cobrança on-line: os membros seguem vendo a chave PIX até a Sprint 5. |
 | 23/11/2026 | 0 | Migrações ficam em `src/migrations/` porque `**/scripts/` está no `.gitignore`. |
 | 23/11/2026 | 0 | O app não define `trust proxy`; por isso o aceite grava `ip` e também o cabeçalho `X-Forwarded-For` bruto. Revisar se o proxy da Hostinger exige `app.set("trust proxy", ...)`. |
 
@@ -212,6 +217,7 @@
 | Data | Sprint | Entregue | Pendente / observações |
 |---|---|---|---|
 | 23/11/2026 | — | URS, plano e este documento de status criados. | Nenhuma sprint iniciada. |
+| 23/11/2026 | 4 | Conexão OAuth da conta Mercado Pago da igreja (PKCE, state de uso único, tokens criptografados), renovação diária, status e desconexão; card no painel. | **Antes do deploy:** (1) criar a aplicação no Mercado Pago (conta da Athos), cadastrar a URL de redirecionamento `https://<api>/athos_adm/api/payments/mercadopago/callback` e ativar PKCE; (2) definir `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_REDIRECT_URI`, `ADMIN_PANEL_URL`, `TOKEN_ENCRYPTION_KEY` (guardar cópia segura) e `CRON_SECRET`; (3) sem Redis, criar cron diário na Hostinger chamando a rota interna. Sem essas variáveis o card mostra "em preparação" e nada quebra. |
 | 23/11/2026 | 3 | Chave PIX da igreja com BR Code/QR reais, painel "Ofertas (PIX)", telas de oferta no site e no app, inscrição paga com PIX e confirmação manual, fim das cobranças simuladas em produção, webhook protegido, Stripe removido. | **Antes do deploy:** cadastrar a chave PIX da igreja-piloto no painel (Ofertas (PIX)); **não** definir `PAYMENTS_MOCK_ENABLED` em produção; deixar `PAYMENT_WEBHOOK_SECRET` vazio (webhook desligado) até a Sprint 5. Inscrições pagas passam a ficar "registradas" até a secretaria confirmar (mudar para "confirmada" no painel de eventos). Publicar nova versão do app para corrigir as inscrições. |
 | 23/11/2026 | 2 | Consentimento específico para ficha médica (próprio e de menores), bloqueio e ocultação sem consentimento, revogação que apaga os dados, aceite no cadastro, exportação de dados, exclusão incluindo filhos. Novo texto `sensitive_data_consent.md`. | **Antes do deploy:** rodar `npm run legal:publish` (agora também publica o termo de dados sensíveis). **Atenção:** após o deploy, as fichas médicas já cadastradas ficam ocultas até cada titular (ou responsável) consentir — avise a igreja-piloto. Os dados continuam no banco; decidir se serão apagados após um prazo sem consentimento (ver decisões). |
 | 23/11/2026 | 1 | Minutas de Termos, Política, Contrato e DPA; publicação a partir de arquivos (`legal:publish`, idempotente, `--minor`); placeholders do fornecedor por variável de ambiente; exportação de evidências; páginas públicas, modal de aceite (site e app), bloqueio do painel até o aceite do contrato, página "Documentos legais". | **Antes do deploy:** definir `LEGAL_PROVIDER_NAME`, `LEGAL_PROVIDER_DOCUMENT`, `LEGAL_PROVIDER_EMAIL` e `LEGAL_FORUM_CITY` (senão os textos mostram `[RAZÃO SOCIAL DO FORNECEDOR]` etc.), cadastrar o e-mail de contato da igreja no painel, e rodar `npm run legal:publish` com `APP_ENV=production`. A partir daí **todos os usuários** verão o modal de aceite no próximo acesso e o **admin da igreja-piloto** ficará bloqueado no painel até aceitar o contrato. Recomendo publicar só depois da revisão do advogado (1.10), ou publicar já e publicar a v2 revisada depois (exigirá novo aceite). |
