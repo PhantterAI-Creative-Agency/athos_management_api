@@ -5,6 +5,7 @@ import { withRole } from "../middlewares/rbac";
 import { validate } from "../middlewares/validate";
 import {
   acceptLegalDocumentSchema,
+  exportEvidenceQuerySchema,
   getCurrentLegalDocumentQuerySchema,
   legalTypeParamSchema,
   listLegalDocumentsQuerySchema,
@@ -28,6 +29,15 @@ router.get(
   legalController.list,
 );
 router.post("/documents", authenticate, platformOnly, validate(publishLegalDocumentSchema), legalController.publish);
+
+// Evidência completa dos aceites da igreja (JSON para download).
+router.get(
+  "/evidence",
+  authenticate,
+  withRole(["admin", "devAdmin"]),
+  validate(exportEvidenceQuerySchema, "query"),
+  legalController.evidence,
+);
 
 // Público: site e app exibem Termos/Política antes do login, já com o nome da igreja.
 router.get(

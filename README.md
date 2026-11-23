@@ -80,6 +80,8 @@ O arquivo carregado depende de `APP_ENV` (`local` → `.env.local`, `qa` → `.e
 | `OPENROUTER_BASE_URL` | não | `https://openrouter.ai/api/v1` | Base URL do OpenRouter |
 | `GMAIL_APP_NAME` / `GMAIL_APP_MAIL` / `GMAIL_APP_PASSWORD` | não | — | SMTP para envio de e-mail |
 | `CRON_SECRET` | não | — | Protege endpoints de cron internos |
+| `LEGAL_PROVIDER_NAME` / `LEGAL_PROVIDER_DOCUMENT` / `LEGAL_PROVIDER_EMAIL` | não (definir em produção) | `[RAZÃO SOCIAL…]` etc. | Dados do fornecedor exibidos nos Termos, Política, Contrato e DPA |
+| `LEGAL_FORUM_CITY` | não (definir em produção) | `[CIDADE/UF DO FORO]` | Foro do Contrato |
 
 ### Scripts
 
@@ -93,6 +95,7 @@ yarn typecheck    # tsc --noEmit
 yarn test         # vitest run (única execução)
 yarn test:watch   # vitest em modo watch
 yarn migrate:pilot-radio <slug>   # liga a rádio da igreja-piloto (provisório, ver src/migrations)
+yarn legal:publish                # publica Termos/Política/Contrato/DPA alterados (src/content/legal)
 ```
 
 ## Contrato da API

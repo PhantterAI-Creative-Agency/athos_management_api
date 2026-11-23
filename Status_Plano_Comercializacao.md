@@ -2,7 +2,7 @@
 
 **Plano:** [`PLANO_Comercializacao.md`](./PLANO_Comercializacao.md)
 **Requisitos:** [`URS_Comercializacao.md`](./URS_Comercializacao.md)
-**Última atualização:** 23/11/2026 (fim da Sprint 0)
+**Última atualização:** 23/11/2026 (fim da Sprint 1)
 
 > **Como atualizar (ao final de cada sprint):**
 > 1. Marque as tarefas concluídas com `[x]` e as parciais com `[~]`.
@@ -20,7 +20,7 @@
 | Sprint | Tema | Status | Início | Fim | Progresso |
 |---|---|---|---|---|---|
 | 0 | Fundação (documentos legais, aceites, feature flags) | Concluída | 23/11/2026 | 23/11/2026 | 7/7 |
-| 1 | Termos, Política, Contrato e DPA | Não iniciada | — | — | 0/10 |
+| 1 | Termos, Política, Contrato e DPA | Concluída (exceto revisão jurídica) | 23/11/2026 | 23/11/2026 | 9/10 |
 | 2 | Consentimento dos membros (LGPD) | Não iniciada | — | — | 0/8 |
 | 3 | PIX provisório e fim do fluxo simulado | Não iniciada | — | — | 0/7 |
 | 4 | Mercado Pago: OAuth | Não iniciada | — | — | 0/9 |
@@ -60,16 +60,18 @@
 
 ## Sprint 1 — Termos, Política de Privacidade, Contrato e DPA
 
-- [ ] 1.1 Termos de Uso genéricos
-- [ ] 1.2 Política de Privacidade
-- [ ] 1.3 Minuta do Contrato SaaS
-- [ ] 1.4 DPA
-- [ ] 1.5 Seed dos documentos v1
-- [ ] 1.6 Páginas públicas no site e no app lidas da API
-- [ ] 1.7 Aceite do contrato pelo representante legal no painel
-- [ ] 1.8 Modal de reaceite
-- [ ] 1.9 Exportação da evidência de aceite
-- [ ] 1.10 Revisão do advogado incorporada (v2)
+- [x] 1.1 Termos de Uso genéricos — `src/content/legal/terms.md`
+- [x] 1.2 Política de Privacidade — `src/content/legal/privacy.md`
+- [x] 1.3 Minuta do Contrato SaaS — `src/content/legal/saas_contract.md`
+- [x] 1.4 DPA — `src/content/legal/dpa.md`
+- [x] 1.5 Publicação dos documentos — `npm run legal:publish` (`src/migrations/publishLegalDocuments.ts`; **ainda não executado em produção**)
+- [x] 1.6 Páginas públicas lidas da API — site: `/termos-de-servico` e `/politica-de-privacidade` (nova); app: telas `termos-de-servico` e `politica-de-privacidade` (nova); links no rodapé, login, cadastro e perfil
+- [x] 1.7 Aceite do contrato e do DPA pelo representante legal — site: `ChurchContractGate` bloqueia o painel até o aceite (nome, CPF, cargo, CNPJ, declaração de poderes)
+- [x] 1.8 Modal de aceite/reaceite de Termos e Política — site (`LegalPendingModal`) e app (`LegalPendingModal`, tela cheia)
+- [x] 1.9 Exportação da evidência — `GET /legal/evidence` + página "Documentos legais" no painel com download em JSON
+- [ ] 1.10 Revisão do advogado incorporada (v2) — **pendente** (não técnica)
+
+**Validação:** 10 testes novos na API (suíte: 405 passando); build do site ok; fluxo ponta a ponta testado no navegador (Playwright): Política pública com o e-mail da igreja → modal de aceite do membro → modal + bloqueio do contrato para o admin → aceite com CPF/CNPJ mascarados → página "Documentos legais" com os dois aceites. O teste visual achou e corrigiu um bug (placeholder `{{platformName}}` aparecia cru no título). App: typecheck e lint sem erros novos; não foi executado em aparelho/simulador.
 
 ## Sprint 2 — Consentimento dos membros (LGPD)
 
@@ -161,7 +163,7 @@
 - [ ] NT-01 Conversa com o pastor da igreja-piloto (uso e necessidades)
 - [ ] NT-02 Depoimento em vídeo
 - [ ] NT-03 3 a 4 indicações de pastores
-- [ ] NT-04 Revisão jurídica contratada
+- [ ] NT-04 Revisão jurídica contratada — minutas prontas em `src/content/legal/` para enviar ao advogado
 - [ ] NT-05 Roteiro de demonstração e mensagem de indicação
 
 ## Decisões tomadas durante a execução
@@ -173,6 +175,10 @@
 | 23/11/2026 | 0 | Documentos legais são **globais da plataforma** (publicados por `devAdmin`), com placeholders `{{churchName}}`, `{{churchSlug}}`, `{{platformName}}`. O aceite guarda o hash do modelo e o hash do texto exibido. |
 | 23/11/2026 | 0 | Versão publicada com `requiresReacceptance: false` (correção menor) não gera novo aceite; a v1 sempre exige. |
 | 23/11/2026 | 0 | Aceites de escopo "igreja" (Contrato, DPA, rádio) só podem ser feitos por `admin`. |
+| 23/11/2026 | 1 | Os textos legais vivem em `src/content/legal/*.md` (versionados no git) e são publicados no banco por script; a API de publicação (`POST /legal/documents`) continua disponível para o `devAdmin`. |
+| 23/11/2026 | 1 | O contrato e o DPA são aceitos juntos, com os mesmos dados do representante legal, no painel web. O app não tem painel administrativo, então lá só existe o aceite de Termos e Política. |
+| 23/11/2026 | 1 | O bloqueio do painel até o aceite do contrato é feito no site (front-end); a API ainda não recusa ações administrativas de igrejas sem contrato aceito. Avaliar bloqueio no servidor antes de vender para terceiros. |
+| 23/11/2026 | 1 | O cadastro (site e app) ainda não tem checkbox de aceite; o aceite acontece no primeiro acesso, pelo modal. O checkbox separado de dados sensíveis entra na Sprint 2 (2.1). |
 | 23/11/2026 | 0 | Migrações ficam em `src/migrations/` porque `**/scripts/` está no `.gitignore`. |
 | 23/11/2026 | 0 | O app não define `trust proxy`; por isso o aceite grava `ip` e também o cabeçalho `X-Forwarded-For` bruto. Revisar se o proxy da Hostinger exige `app.set("trust proxy", ...)`. |
 
@@ -191,4 +197,5 @@
 | Data | Sprint | Entregue | Pendente / observações |
 |---|---|---|---|
 | 23/11/2026 | — | URS, plano e este documento de status criados. | Nenhuma sprint iniciada. |
+| 23/11/2026 | 1 | Minutas de Termos, Política, Contrato e DPA; publicação a partir de arquivos (`legal:publish`, idempotente, `--minor`); placeholders do fornecedor por variável de ambiente; exportação de evidências; páginas públicas, modal de aceite (site e app), bloqueio do painel até o aceite do contrato, página "Documentos legais". | **Antes do deploy:** definir `LEGAL_PROVIDER_NAME`, `LEGAL_PROVIDER_DOCUMENT`, `LEGAL_PROVIDER_EMAIL` e `LEGAL_FORUM_CITY` (senão os textos mostram `[RAZÃO SOCIAL DO FORNECEDOR]` etc.), cadastrar o e-mail de contato da igreja no painel, e rodar `npm run legal:publish` com `APP_ENV=production`. A partir daí **todos os usuários** verão o modal de aceite no próximo acesso e o **admin da igreja-piloto** ficará bloqueado no painel até aceitar o contrato. Recomendo publicar só depois da revisão do advogado (1.10), ou publicar já e publicar a v2 revisada depois (exigirá novo aceite). |
 | 23/11/2026 | 0 | Documentos legais versionados e imutáveis, registro de aceites/revogações com evidência (IP, X-Forwarded-For, user-agent, hash do texto exibido), pendências por usuário/igreja, feature flags por igreja, migração da igreja-piloto, 31 testes novos (suíte: 395 passando). | **Antes do deploy:** rodar `npm run migrate:pilot-radio -- <slug-da-piloto>` com `APP_ENV=production` (usa `tsx`, que é dependência de desenvolvimento). Nenhum documento está publicado ainda: `/legal/pending` retorna vazio até a Sprint 1. Site e app ainda não consomem as rotas novas. |

@@ -106,6 +106,14 @@ export const revokeLegalDocumentSchema = z.object({
 
 export type RevokeLegalDocumentDTO = z.infer<typeof revokeLegalDocumentSchema>;
 
+export const exportEvidenceQuerySchema = z.object({
+  // Só a equipe da plataforma (devAdmin) escolhe a igreja; o admin sempre recebe a própria.
+  churchId: z.string().min(1).optional(),
+  type: z.enum(LEGAL_DOCUMENT_TYPES).optional(),
+});
+
+export type ExportEvidenceQueryDTO = z.infer<typeof exportEvidenceQuerySchema>;
+
 export interface LegalDocumentDTO {
   id: string;
   type: LegalDocumentType;

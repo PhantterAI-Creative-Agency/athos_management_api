@@ -4,6 +4,7 @@ import { sendSuccess } from "../helpers/response.helper";
 import { auditLog } from "../helpers/auditLogger.helper";
 import type {
   AcceptLegalDocumentDTO,
+  ExportEvidenceQueryDTO,
   GetCurrentLegalDocumentQueryDTO,
   LegalDocumentType,
   ListLegalDocumentsQueryDTO,
@@ -79,6 +80,23 @@ export async function revoke(req: Request, res: Response, next: NextFunction): P
     const record = await legalService.revokeDocument(getType(req), body, req.user!, getEvidence(req));
     await auditLog("REVOKE", "LegalAcceptance", record.id, { type: record.type, version: record.version }, req);
     sendSuccess(res, record, 201);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function evidence(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const query = req.validated?.query as ExportEvidenceQueryDTO;
+    const isPlatform = req.user!.roles.includes("devAdmin");
+    const churchId = isPlatform && query.churchId ? query.churchId : req.user!.churchId;
+    const data = await legalService.exportEvidence(churchId, query.type);
+    await auditLog("OTHER", "LegalEvidenceExport", churchId, { type: query.type ?? "all" }, req);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="evidencias-aceite-${data.church.slug}-${data.generatedAt.slice(0, 10)}.json"`,
+    );
+    sendSuccess(res, data);
   } catch (error) {
     next(error);
   }

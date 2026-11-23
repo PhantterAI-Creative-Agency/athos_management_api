@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "fix:email-index": "tsx src/scripts/fixEmailIndex.ts",
-    "migrate:pilot-radio": "tsx src/migrations/enablePilotRadio.ts"
+    "migrate:pilot-radio": "tsx src/migrations/enablePilotRadio.ts",
+    "legal:publish": "tsx src/migrations/publishLegalDocuments.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1094.0",

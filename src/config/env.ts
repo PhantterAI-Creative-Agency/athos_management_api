@@ -34,6 +34,11 @@ const envSchema = z.object({
   // Pasta onde ficam os arquivos enviados (áudios da rádio). Na Hostinger, use um caminho fora da pasta do deploy.
   UPLOAD_DIR: z.string().default(path.resolve(process.cwd(), "uploads")),
   RADIO_MAX_UPLOAD_MB: z.coerce.number().positive().default(100),
+  // Dados do fornecedor exibidos nos documentos legais (Termos, Política, Contrato, DPA).
+  LEGAL_PROVIDER_NAME: z.string().default("[RAZÃO SOCIAL DO FORNECEDOR]"),
+  LEGAL_PROVIDER_DOCUMENT: z.string().default("[CPF/CNPJ DO FORNECEDOR]"),
+  LEGAL_PROVIDER_EMAIL: z.string().default("[E-MAIL DO FORNECEDOR]"),
+  LEGAL_FORUM_CITY: z.string().default("[CIDADE/UF DO FORO]"),
 });
 
 const parsed = envSchema.safeParse(process.env);

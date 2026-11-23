@@ -291,3 +291,117 @@ describe("Imutabilidade das evidências", () => {
     );
   });
 });
+
+describe("Evidência de aceites (exportação)", () => {
+  it("membro comum não exporta evidências", async () => {
+    const res = await request(app).get(`${API}/legal/evidence`).set("Authorization", `Bearer ${memberToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("admin exporta a evidência da própria igreja com CPF completo e dados de rede", async () => {
+    const res = await request(app).get(`${API}/legal/evidence`).set("Authorization", `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.headers["content-disposition"]).toContain("evidencias-aceite-igreja-esperanca");
+    expect(res.body.data.church.slug).toBe("igreja-esperanca");
+
+    const contract = res.body.data.records.find((r: { type: string }) => r.type === "saas_contract");
+    expect(contract.signer.cpf).toBe("52998224725");
+    expect(contract.documentTitle).toBe("Documento saas_contract");
+    expect(contract.user.email).toBe("admin@esperanca.com");
+    expect(contract.renderedHash).toHaveLength(64);
+
+    const types = res.body.data.records.map((r: { type: string }) => r.type);
+    expect(types).toContain("terms");
+    expect(types).toContain("sensitive_data_consent");
+  });
+
+  it("filtra por tipo de documento", async () => {
+    const res = await request(app)
+      .get(`${API}/legal/evidence?type=saas_contract`)
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(res.body.data.records.every((r: { type: string }) => r.type === "saas_contract")).toBe(true);
+  });
+
+  it("admin não consegue exportar outra igreja passando churchId", async () => {
+    const otherId = new mongoose.Types.ObjectId().toString();
+    const res = await request(app)
+      .get(`${API}/legal/evidence?churchId=${otherId}`)
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.church.slug).toBe("igreja-esperanca");
+  });
+
+  it("devAdmin escolhe a igreja", async () => {
+    const otherId = new mongoose.Types.ObjectId().toString();
+    const res = await request(app)
+      .get(`${API}/legal/evidence?churchId=${otherId}`)
+      .set("Authorization", `Bearer ${devAdminToken}`);
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("Placeholders do fornecedor e da igreja", () => {
+  it("preenche e-mail da igreja e dados do fornecedor", async () => {
+    const { Church } = await import("../models/Church.model");
+    await Church.updateOne({ slug: "igreja-esperanca" }, { $set: { "contact.email": "contato@esperanca.com" } });
+    await publish("dpa", "{{churchEmail}} | {{providerName}} | {{forumCity}} | {{desconhecido}}");
+
+    const res = await request(app).get(`${API}/legal/dpa/current?churchSlug=igreja-esperanca`);
+    expect(res.body.data.content).toBe(
+      "contato@esperanca.com | [RAZÃO SOCIAL DO FORNECEDOR] | [CIDADE/UF DO FORO] | {{desconhecido}}",
+    );
+  });
+});
+
+describe("Publicação a partir dos arquivos (legal:publish)", () => {
+  it("os quatro arquivos de conteúdo são válidos", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const { parseLegalMarkdown } = await import("../services/legal.service");
+    for (const type of ["terms", "privacy", "saas_contract", "dpa"] as const) {
+      const raw = await fs.readFile(path.resolve(__dirname, `../content/legal/${type}.md`), "utf8");
+      const parsed = parseLegalMarkdown(type, raw);
+      expect(parsed.title.length).toBeGreaterThan(3);
+      expect(parsed.content).not.toMatch(/Princípios de Vida/);
+      expect(parsed.content).toContain("{{");
+    }
+  });
+
+  it("rejeita arquivo sem título", async () => {
+    const { parseLegalMarkdown } = await import("../services/legal.service");
+    expect(() => parseLegalMarkdown("terms", "sem título")).toThrow(/# Título/);
+  });
+
+  it("publica só o que mudou, e --minor não exige novo aceite", async () => {
+    const { syncDocuments } = await import("../services/legal.service");
+    const source = { type: "privacy" as const, title: "Política", content: "Texto v1\n" };
+
+    const first = await syncDocuments([source]);
+    expect(first[0]).toMatchObject({ status: "published", version: 1 });
+
+    const again = await syncDocuments([source]);
+    expect(again[0]).toMatchObject({ status: "unchanged", version: 1 });
+
+    const minor = await syncDocuments([{ ...source, content: "Texto v1 corrigido\n" }], { minor: true });
+    expect(minor[0]).toMatchObject({ status: "published", version: 2 });
+
+    const doc = (await request(app).get(`${API}/legal/privacy/current`)).body.data;
+    expect(doc.version).toBe(2);
+    expect(doc.requiresReacceptance).toBe(false);
+  });
+});
+
+describe("Placeholders no título", () => {
+  it("preenche placeholders também no título e nas pendências", async () => {
+    const res = await request(app)
+      .post(`${API}/legal/documents`)
+      .set("Authorization", `Bearer ${devAdminToken}`)
+      .send({ type: "saas_contract", title: "Contrato — {{platformName}}", content: "Novo contrato" });
+    expect(res.status).toBe(201);
+    expect(res.body.data.title).toBe("Contrato — Athos Management");
+
+    const pending = await request(app).get(`${API}/legal/pending`).set("Authorization", `Bearer ${adminToken}`);
+    const contract = pending.body.data.find((d: { type: string }) => d.type === "saas_contract");
+    expect(contract.title).toBe("Contrato — Athos Management");
+  });
+});

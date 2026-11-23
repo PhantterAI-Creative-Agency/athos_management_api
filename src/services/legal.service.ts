@@ -3,6 +3,8 @@ import { Types } from "mongoose";
 import { LegalDocument } from "../models/LegalDocument.model";
 import { LegalAcceptance } from "../models/LegalAcceptance.model";
 import { Church } from "../models/Church.model";
+import { User } from "../models/User.model";
+import { env } from "../config/env";
 import { AppError } from "../middlewares/errorHandler";
 import { isFamilyManager } from "../helpers/family.helper";
 import { isValidCnpj, isValidCpf, onlyDigits } from "../helpers/brDocument.helper";
@@ -51,6 +53,15 @@ type LegalAcceptanceLike = {
 interface RenderContext {
   churchName?: string;
   churchSlug?: string;
+  churchEmail?: string;
+}
+
+type ChurchForRender = { name: string; slug: string; contact?: { email?: string | null } | null };
+
+const CHURCH_RENDER_FIELDS = "name slug contact.email";
+
+function churchContext(church: ChurchForRender): RenderContext {
+  return { churchName: church.name, churchSlug: church.slug, churchEmail: church.contact?.email ?? undefined };
 }
 
 export function sha256(value: string): string {
@@ -62,6 +73,11 @@ function renderContent(template: string, ctx: RenderContext): string {
     platformName: PLATFORM_NAME,
     churchName: ctx.churchName ?? "a igreja",
     churchSlug: ctx.churchSlug ?? "",
+    churchEmail: ctx.churchEmail ?? "informado na página de contato da igreja",
+    providerName: env.LEGAL_PROVIDER_NAME,
+    providerDocument: env.LEGAL_PROVIDER_DOCUMENT,
+    providerEmail: env.LEGAL_PROVIDER_EMAIL,
+    forumCity: env.LEGAL_FORUM_CITY,
   };
   return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key: string) => values[key] ?? match);
 }
@@ -76,7 +92,7 @@ function toDocumentDTO(doc: LegalDocumentLike, ctx: RenderContext): LegalDocumen
     id: String(doc._id),
     type: doc.type as LegalDocumentType,
     version: doc.version,
-    title: doc.title,
+    title: renderContent(doc.title, ctx),
     content: renderContent(doc.content, ctx),
     contentHash: doc.contentHash,
     requiresReacceptance: doc.requiresReacceptance,
@@ -172,9 +188,9 @@ export async function getCurrentDocument(type: LegalDocumentType, churchSlug?: s
 
   let ctx: RenderContext = {};
   if (churchSlug) {
-    const church = await Church.findOne({ slug: churchSlug }).select("name slug").lean();
+    const church = await Church.findOne({ slug: churchSlug }).select(CHURCH_RENDER_FIELDS).lean();
     if (!church) throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
-    ctx = { churchName: church.name, churchSlug: church.slug };
+    ctx = churchContext(church);
   }
 
   return toDocumentDTO(doc, ctx);
@@ -226,7 +242,7 @@ export async function listPending(user: AuthTokenPayload): Promise<PendingLegalD
 
     pending.push({
       type,
-      title: current.title,
+      title: renderContent(current.title, {}),
       version: current.version,
       contentHash: current.contentHash,
       scope: rule.scope,
@@ -293,10 +309,10 @@ export async function acceptDocument(
 
   const signer = normalizeSigner(type, data.signer);
 
-  const church = await Church.findById(user.churchId).select("name slug").lean();
+  const church = await Church.findById(user.churchId).select(CHURCH_RENDER_FIELDS).lean();
   if (!church) throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
 
-  const rendered = renderContent(current.content, { churchName: church.name, churchSlug: church.slug });
+  const rendered = renderContent(current.content, churchContext(church));
 
   const record = await LegalAcceptance.create({
     action: "accept",
@@ -359,4 +375,140 @@ export async function revokeDocument(
   });
 
   return toAcceptanceDTO(record);
+}
+
+export interface LegalEvidenceRecordDTO {
+  id: string;
+  action: LegalAcceptanceAction;
+  type: LegalDocumentType;
+  documentTitle?: string;
+  version: number;
+  contentHash: string;
+  renderedHash: string;
+  user: { id: string; name?: string; email?: string };
+  onBehalfOfUser?: { id: string; name?: string };
+  signer?: { name: string; cpf: string; role: string; cnpj: string };
+  ip?: string;
+  forwardedFor?: string;
+  userAgent?: string;
+  createdAt: string;
+}
+
+export interface LegalEvidenceDTO {
+  church: { id: string; name: string; slug: string };
+  generatedAt: string;
+  records: LegalEvidenceRecordDTO[];
+}
+
+/**
+ * Evidência completa de aceites de uma igreja (contrato, DPA, termos, consentimentos), para
+ * prova em caso de disputa ou fiscalização. Diferente das respostas comuns, traz o CPF completo
+ * do representante legal — só o admin da própria igreja e a equipe da plataforma acessam.
+ */
+export async function exportEvidence(churchId: string, type?: LegalDocumentType): Promise<LegalEvidenceDTO> {
+  if (!Types.ObjectId.isValid(churchId)) throw new AppError(400, "INVALID_CHURCH_ID", "Igreja inválida");
+
+  const church = await Church.findById(churchId).select("name slug").lean();
+  if (!church) throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
+
+  const records = await LegalAcceptance.find({ churchId: church._id, ...(type ? { documentType: type } : {}) })
+    .sort({ createdAt: 1, _id: 1 })
+    .lean();
+
+  const userIds = new Set<string>();
+  const documentIds = new Set<string>();
+  for (const record of records) {
+    userIds.add(String(record.userId));
+    if (record.onBehalfOfUserId) userIds.add(String(record.onBehalfOfUserId));
+    documentIds.add(String(record.documentId));
+  }
+
+  const [users, documents] = await Promise.all([
+    User.find({ _id: { $in: [...userIds] } }).select("name email").lean(),
+    LegalDocument.find({ _id: { $in: [...documentIds] } }).select("title").lean(),
+  ]);
+  const usersById = new Map(users.map((u) => [String(u._id), u]));
+  const titlesById = new Map(documents.map((d) => [String(d._id), d.title]));
+
+  return {
+    church: { id: String(church._id), name: church.name, slug: church.slug },
+    generatedAt: new Date().toISOString(),
+    records: records.map((record) => {
+      const user = usersById.get(String(record.userId));
+      const onBehalf = record.onBehalfOfUserId ? usersById.get(String(record.onBehalfOfUserId)) : undefined;
+      return {
+        id: String(record._id),
+        action: record.action as LegalAcceptanceAction,
+        type: record.documentType as LegalDocumentType,
+        documentTitle: titlesById.get(String(record.documentId)),
+        version: record.version,
+        contentHash: record.contentHash,
+        renderedHash: record.renderedHash,
+        user: { id: String(record.userId), name: user?.name, email: user?.email ?? undefined },
+        onBehalfOfUser: record.onBehalfOfUserId
+          ? { id: String(record.onBehalfOfUserId), name: onBehalf?.name }
+          : undefined,
+        signer: record.signer ?? undefined,
+        ip: record.ip ?? undefined,
+        forwardedFor: record.forwardedFor ?? undefined,
+        userAgent: record.userAgent ?? undefined,
+        createdAt: record.createdAt.toISOString(),
+      };
+    }),
+  };
+}
+
+export interface LegalFileSource {
+  type: LegalDocumentType;
+  title: string;
+  content: string;
+}
+
+export interface SyncResult {
+  type: LegalDocumentType;
+  status: "published" | "unchanged";
+  version: number;
+}
+
+/**
+ * Publica uma nova versão de cada documento cujo conteúdo difere da última versão publicada.
+ * Idempotente: rodar de novo sem mudanças nos arquivos não publica nada.
+ */
+export async function syncDocuments(
+  sources: LegalFileSource[],
+  options: { minor?: boolean; publisherId?: string } = {},
+): Promise<SyncResult[]> {
+  const results: SyncResult[] = [];
+
+  for (const source of sources) {
+    const latest = await LegalDocument.findOne({ type: source.type }).sort({ version: -1 }).lean();
+    if (latest && latest.contentHash === sha256(source.content) && latest.title === source.title) {
+      results.push({ type: source.type, status: "unchanged", version: latest.version });
+      continue;
+    }
+
+    const version = (latest?.version ?? 0) + 1;
+    await LegalDocument.create({
+      type: source.type,
+      version,
+      title: source.title,
+      content: source.content,
+      contentHash: sha256(source.content),
+      requiresReacceptance: version === 1 ? true : !options.minor,
+      publishedAt: new Date(),
+      publishedBy: options.publisherId ? new Types.ObjectId(options.publisherId) : undefined,
+    });
+    results.push({ type: source.type, status: "published", version });
+  }
+
+  return results;
+}
+
+/** Converte um arquivo markdown (primeira linha "# Título") em título + conteúdo. */
+export function parseLegalMarkdown(type: LegalDocumentType, raw: string): LegalFileSource {
+  const normalized = raw.replace(/\r\n/g, "\n");
+  const [firstLine, ...rest] = normalized.split("\n");
+  const match = /^#\s+(.+)$/.exec(firstLine.trim());
+  if (!match) throw new Error(`O arquivo de "${type}" deve começar com "# Título"`);
+  return { type, title: match[1].trim(), content: rest.join("\n").trim() + "\n" };
 }
