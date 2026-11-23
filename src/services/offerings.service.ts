@@ -1,6 +1,8 @@
 import { Types } from "mongoose";
 import { Offering } from "../models/Offering.model";
+import { Church } from "../models/Church.model";
 import { createCheckout } from "../helpers/paymentProvider.helper";
+import { createMercadoPagoCharge, resolvePaymentMode } from "./mercadopagoPayments.service";
 import type { AuthTokenPayload } from "../helpers/jwt.helper";
 import { AppError } from "../middlewares/errorHandler";
 import type {
@@ -24,6 +26,10 @@ type OfferingDocumentLike = {
   provider: OfferingDTO["provider"];
   providerPaymentId: string;
   status: OfferingDTO["status"];
+  pixCopyPaste?: string | null;
+  pixQrCodeBase64?: string | null;
+  expiresAt?: Date | null;
+  paidAt?: Date | null;
   createdAt: Date;
 };
 
@@ -39,6 +45,14 @@ function toOfferingDTO(offering: OfferingDocumentLike): OfferingDTO {
     provider: offering.provider,
     providerPaymentId: offering.providerPaymentId,
     status: offering.status,
+    // O QR só faz sentido enquanto a cobrança está pendente.
+    pixCopyPaste: offering.status === "pending" ? (offering.pixCopyPaste ?? undefined) : undefined,
+    pixQrCode:
+      offering.status === "pending" && offering.pixQrCodeBase64
+        ? `data:image/png;base64,${offering.pixQrCodeBase64}`
+        : undefined,
+    expiresAt: offering.expiresAt ? offering.expiresAt.toISOString() : undefined,
+    paidAt: offering.paidAt ? offering.paidAt.toISOString() : undefined,
     createdAt: offering.createdAt.toISOString(),
   };
 }
@@ -69,6 +83,17 @@ export async function createOffering(
   requester: AuthTokenPayload,
   data: CreateOfferingDTO,
 ): Promise<CreateOfferingResultDTO> {
+  if ((await resolvePaymentMode(requester.churchId)) === "mercadopago") {
+    const offering = await createMercadoPagoCharge({
+      churchId: requester.churchId,
+      userId: requester.sub,
+      type: data.type,
+      amount: data.amount,
+    });
+    const dto = toOfferingDTO(offering);
+    return { ...dto, clientSecret: "", pixQrCode: dto.pixQrCode, pixCopyPaste: dto.pixCopyPaste };
+  }
+
   const { providerPaymentId, clientSecret, pixQrCode, pixCopyPaste } = await createCheckout(
     data.provider,
     data.amount,
@@ -93,7 +118,21 @@ export async function createEventRegistrationOffering(
   eventId: string,
   amount: number,
   provider: CreateOfferingDTO["provider"],
+  eventTitle?: string,
 ): Promise<CreateOfferingResultDTO> {
+  if ((await resolvePaymentMode(requester.churchId)) === "mercadopago") {
+    const offering = await createMercadoPagoCharge({
+      churchId: requester.churchId,
+      userId: requester.sub,
+      type: "event_registration",
+      amount,
+      relatedEventId: eventId,
+      description: eventTitle ? `Inscrição: ${eventTitle}` : undefined,
+    });
+    const dto = toOfferingDTO(offering);
+    return { ...dto, clientSecret: "", pixQrCode: dto.pixQrCode, pixCopyPaste: dto.pixCopyPaste };
+  }
+
   const { providerPaymentId, clientSecret, pixQrCode, pixCopyPaste } = await createCheckout(provider, amount);
 
   const offering = await Offering.create({
@@ -191,4 +230,16 @@ export async function processPaymentWebhook(data: PaymentWebhookDTO): Promise<Of
   await offering.save();
 
   return toOfferingDTO(offering);
+}
+
+export interface PaymentOptionsDTO {
+  /** mercadopago: PIX com confirmação automática; static_pix: chave da igreja; unavailable: nenhum. */
+  mode: "mercadopago" | "static_pix" | "unavailable" | "mock";
+  staticPixAvailable: boolean;
+}
+
+export async function getPaymentOptions(churchId: string): Promise<PaymentOptionsDTO> {
+  const mode = await resolvePaymentMode(churchId);
+  const church = await Church.findById(churchId).select("pix").lean();
+  return { mode, staticPixAvailable: !!church?.pix };
 }

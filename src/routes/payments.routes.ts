@@ -19,5 +19,7 @@ router.get("/mercadopago/connect", ...churchAdmin, mercadopagoController.connect
 router.get("/mercadopago/callback", mercadopagoController.callback);
 router.get("/mercadopago/status", ...churchAdmin, mercadopagoController.status);
 router.delete("/mercadopago", ...churchAdmin, mercadopagoController.disconnect);
+// Notificações de pagamento do Mercado Pago (público; conferência sempre na API do Mercado Pago).
+router.post("/mercadopago/webhook", mercadopagoController.webhook);
 
 export default router;

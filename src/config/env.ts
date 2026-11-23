@@ -48,6 +48,10 @@ const envSchema = z.object({
   MP_REDIRECT_URI: z.string().optional(),
   // "true" (padrão) envia PKCE (S256). Exige ativar PKCE em "Detalhes da aplicação" no Mercado Pago.
   MP_USE_PKCE: z.enum(["true", "false"]).default("true"),
+  // Chave secreta de webhooks da aplicação (painel do Mercado Pago → Webhooks). Valida x-signature.
+  MP_WEBHOOK_SECRET: z.string().optional(),
+  // URL pública do webhook; padrão: derivada de MP_REDIRECT_URI (troca /callback por /webhook).
+  MP_NOTIFICATION_URL: z.string().optional(),
   MP_AUTH_BASE_URL: z.string().default("https://auth.mercadopago.com"),
   MP_API_BASE_URL: z.string().default("https://api.mercadopago.com"),
   // URL do site (painel), para voltar após autorizar no Mercado Pago. Ex.: https://suaigreja.org

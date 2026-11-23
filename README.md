@@ -86,6 +86,8 @@ O arquivo carregado depende de `APP_ENV` (`local` → `.env.local`, `qa` → `.e
 | `MP_USE_PKCE` | não | `true` | Envia PKCE (S256); ative PKCE em "Detalhes da aplicação" no Mercado Pago |
 | `ADMIN_PANEL_URL` | não (idem) | — | URL do site, para voltar ao painel após autorizar |
 | `TOKEN_ENCRYPTION_KEY` | não (idem) | — | 32 bytes em base64/hex; criptografa os tokens das igrejas (AES-256-GCM). **Não perca**: sem ela os tokens salvos ficam ilegíveis |
+| `MP_WEBHOOK_SECRET` | não (recomendado) | — | Chave secreta de webhooks da aplicação no Mercado Pago; valida o `x-signature` |
+| `MP_NOTIFICATION_URL` | não | derivada de `MP_REDIRECT_URI` | URL pública (https) do webhook de pagamentos |
 | `PAYMENT_WEBHOOK_SECRET` | não | — | Segredo exigido no cabeçalho `X-Webhook-Secret` do webhook de pagamentos; sem ele o webhook fica desligado |
 | `PAYMENTS_MOCK_ENABLED` | não | `false` (`true` nos testes) | Liga cobranças simuladas; **nunca** em produção |
 | `LEGAL_FORUM_CITY` | não (definir em produção) | `[CIDADE/UF DO FORO]` | Foro do Contrato |
@@ -172,8 +174,8 @@ Todos montados em `/athos_adm/api/...` (ver `src/routes/index.ts`):
 | `/events` + inscrições | Eventos e inscrições (eventos pagos: PIX da igreja com confirmação manual até a integração do Mercado Pago) |
 | `/ministries` | Ministérios e voluntários (lista já vem ordenada com ministérios do usuário primeiro + flag `isVolunteer`) |
 | `/growth-groups` | Grupos de crescimento (GC), membros |
-| `/offerings` | Ofertas; `GET /offerings/pix` gera o PIX copia e cola + QR na chave da igreja |
-| `/payments` | Webhook de pagamento (protegido por `PAYMENT_WEBHOOK_SECRET`; desligado sem ele); conexão OAuth da conta Mercado Pago da igreja (`/mercadopago/connect`, `/callback`, `/status`, `DELETE /mercadopago`) |
+| `/offerings` | Ofertas: com Mercado Pago conectado, `POST /offerings` gera PIX na conta da igreja (confirmação automática); `GET /offerings/payment-options` indica o modo; `GET /offerings/pix` gera o PIX estático na chave da igreja |
+| `/payments` | Webhook de pagamento (protegido por `PAYMENT_WEBHOOK_SECRET`; desligado sem ele); conexão OAuth da conta Mercado Pago da igreja (`/mercadopago/connect`, `/callback`, `/status`, `DELETE /mercadopago`) e notificações de pagamento (`POST /mercadopago/webhook`) |
 | `/mural` | Posts do mural + curtidas |
 | `/media` | Mídia (S3 presigned, sync YouTube) |
 | `/devotionals` | Devocionais |
@@ -188,7 +190,7 @@ Todos montados em `/athos_adm/api/...` (ver `src/routes/index.ts`):
 | `/pastoral-care` | Pedidos de cuidado pastoral |
 | `/contact` | Formulário de contato (público, rate limited) |
 | `/public` | Endpoints públicos por slug de igreja (eventos, devocionais, mídia, ministérios) |
-| `/internal` | Endpoints de cron. `POST /internal/cron/mercadopago-refresh-tokens` exige `Authorization: Bearer <CRON_SECRET>` |
+| `/internal` | Endpoints de cron com `Authorization: Bearer <CRON_SECRET>`: `POST /internal/cron/mercadopago-refresh-tokens` (diário) e `POST /internal/cron/mercadopago-reconcile` (a cada 10–15 min, quando não há Redis) |
 
 ## Jobs (BullMQ)
 

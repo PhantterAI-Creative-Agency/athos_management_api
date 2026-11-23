@@ -2,7 +2,7 @@ import { Event } from "../models/Event.model";
 import { EventRegistration } from "../models/EventRegistration.model";
 import { createEventRegistrationOffering } from "./offerings.service";
 import { buildChurchPixCharge } from "./pix.service";
-import { isPaymentsMockEnabled } from "../helpers/paymentProvider.helper";
+import { resolvePaymentMode } from "./mercadopagoPayments.service";
 import type { AuthTokenPayload } from "../helpers/jwt.helper";
 import { AppError } from "../middlewares/errorHandler";
 import type {
@@ -93,7 +93,9 @@ export async function registerForEvent(
 
   const price = event.price ?? 0;
 
-  if (price > 0 && !isPaymentsMockEnabled()) {
+  const paymentMode = price > 0 ? await resolvePaymentMode(requester.churchId) : null;
+
+  if (paymentMode === "static_pix" || paymentMode === "unavailable") {
     // Sem pagamento on-line: inscrição fica "registered" (aguardando pagamento) e o membro paga
     // pelo PIX estático da igreja, com o id da inscrição no txid para facilitar a conferência.
     const registration = await EventRegistration.create({
@@ -126,6 +128,7 @@ export async function registerForEvent(
       String(event._id),
       price,
       data.provider,
+      event.title,
     );
 
     const registration = await EventRegistration.create({
@@ -142,6 +145,7 @@ export async function registerForEvent(
       pixQrCode: offeringResult.pixQrCode,
       pixCopyPaste: offeringResult.pixCopyPaste,
       paymentConfirmation: "automatic",
+      expiresAt: offeringResult.expiresAt,
     };
   }
 

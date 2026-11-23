@@ -2,7 +2,7 @@
 
 **Plano:** [`PLANO_Comercializacao.md`](./PLANO_Comercializacao.md)
 **Requisitos:** [`URS_Comercializacao.md`](./URS_Comercializacao.md)
-**Última atualização:** 23/11/2026 (fim da Sprint 4)
+**Última atualização:** 23/11/2026 (fim da Sprint 5)
 
 > **Como atualizar (ao final de cada sprint):**
 > 1. Marque as tarefas concluídas com `[x]` e as parciais com `[~]`.
@@ -24,18 +24,18 @@
 | 2 | Consentimento dos membros (LGPD) | Concluída | 23/11/2026 | 23/11/2026 | 8/8 |
 | 3 | PIX provisório e fim do fluxo simulado | Concluída | 23/11/2026 | 23/11/2026 | 7/7 |
 | 4 | Mercado Pago: OAuth | Concluída (falta configurar a aplicação no Mercado Pago) | 23/11/2026 | 23/11/2026 | 8/9 |
-| 5 | Mercado Pago: PIX e webhook | Não iniciada | — | — | 0/11 |
+| 5 | Mercado Pago: PIX e webhook | Concluída (falta o teste real) | 23/11/2026 | 23/11/2026 | 10/11 |
 | 6 | Rádio opcional com aceite | Não iniciada | — | — | 0/6 |
 | 7 | Multi-igreja: temas e onboarding | Não iniciada | — | — | 0/10 |
 | 8 | Planos comerciais e cobrança | Não iniciada | — | — | 0/7 |
 | 9 | Tesouraria | Aguardando requisitos | — | — | — |
 
-**Critérios para o primeiro cliente pagante (URS §11):** 0/6 atendidos.
+**Critérios para o primeiro cliente pagante (URS §11):** 2/6 atendidos no código (valem após o deploy).
 
-- [ ] Nenhum fluxo simulado de pagamento acessível em produção
-- [ ] PIX real recebido na conta da igreja e confirmado por webhook validado
+- [x] Nenhum fluxo simulado de pagamento acessível em produção (Sprint 3)
+- [~] PIX real recebido na conta da igreja e confirmado por webhook validado — código pronto (Sprint 5); falta o teste real (5.11)
 - [ ] Termos, Política, Contrato e DPA publicados, versionados e revisados por advogado
-- [ ] Aceite do representante legal e consentimentos dos membros registrados
+- [x] Aceite do representante legal e consentimentos dos membros registrados (Sprints 1 e 2)
 - [ ] Rádio só funciona após aceite registrado
 - [ ] Igreja nova entra no ar pelo painel, sem deploy manual
 
@@ -118,17 +118,21 @@
 
 ## Sprint 5 — Mercado Pago: PIX e webhook
 
-- [ ] 5.1 Criação do pagamento PIX com o token da igreja
-- [ ] 5.2 QR Code e copia-e-cola reais
-- [ ] 5.3 Fallback para PIX estático
-- [ ] 5.4 Validação de `x-signature`
-- [ ] 5.5 Worker com consulta do pagamento na API
-- [ ] 5.6 Idempotência
-- [ ] 5.7 Confirmação de inscrição em evento pago
-- [ ] 5.8 Job de reconciliação e expiração
-- [ ] 5.9 Telas de oferta no site e no app
-- [ ] 5.10 Testes
-- [ ] 5.11 Teste real em produção na igreja-piloto
+- [x] 5.1 `POST /v1/payments` com o token da igreja, `X-Idempotency-Key` = id da oferta, `external_reference`, validade de 60 min, sem `application_fee` (`src/services/mercadopagoPayments.service.ts`)
+- [x] 5.2 QR Code e copia e cola do Mercado Pago, guardados enquanto a oferta está pendente
+- [x] 5.3 Modo por igreja (`GET /offerings/payment-options`): Mercado Pago conectado → PIX automático; só chave → PIX estático; nenhum → aviso
+- [x] 5.4 `x-signature` validado com `MP_WEBHOOK_SECRET` (HMAC-SHA256 de `id:…;request-id:…;ts:…;`, janela de 15 min)
+- [x] 5.5 Notificação vai para fila (BullMQ, 5 tentativas) ou é processada na hora; o pagamento é **sempre consultado na API** do Mercado Pago, conferindo referência e valor
+- [x] 5.6 Idempotência: transições só para a frente (pendente → pago/falhou/expirado; pago → estornado); notificações repetidas não mudam nada
+- [x] 5.7 Inscrição paga confirmada automaticamente quando o PIX é aprovado
+- [x] 5.8 Conciliação a cada 10 min (BullMQ) ou `POST /internal/cron/mercadopago-reconcile`; PIX vencido vira "expirado"
+- [x] 5.9 Telas (site e app): PIX com contagem regressiva e confirmação automática na tela; inscrição paga avisa que confirma sozinha
+- [x] 5.10 Testes: `mercadopagoPayments.integration.test.ts` (13) + `mercadopagoPayments.helper.test.ts` (5)
+- [ ] 5.11 Teste real em produção na igreja-piloto — **pendente** (depende da aplicação no Mercado Pago, Sprint 4.1)
+
+**Validação:** suíte da API: 481 testes. Fluxo ponta a ponta no navegador contra um Mercado Pago simulado: membro gera PIX de R$ 25 → QR com contagem regressiva → pagamento aprovado + notificação → tela mostra "Pagamento confirmado!" sozinha. App: typecheck e lint sem erros novos; não executado em aparelho.
+
+**A confirmar no primeiro teste real (5.11):** (1) o formato exato do texto assinado no `x-signature` — a documentação consultada não o detalha; se a validação recusar notificações legítimas, a conciliação de 10 em 10 minutos ainda confirma os pagamentos; (2) se o Mercado Pago exige CPF do pagador no PIX (hoje enviamos só e-mail e nome); (3) se as notificações de pagamentos feitos com o token da igreja chegam com assinatura.
 
 ## Sprint 6 — Rádio opcional com aceite
 
@@ -199,6 +203,9 @@
 | 23/11/2026 | 4 | O `state` do OAuth é um valor aleatório guardado no banco (uso único, 10 min), e não um valor assinado: assim também guardamos o code_verifier do PKCE no servidor, como recomenda a documentação ("state sem dados sensíveis"). |
 | 23/11/2026 | 4 | O Mercado Pago não documenta endpoint de revogação. "Desconectar" apaga os tokens do nosso lado; o painel orienta o admin a remover a aplicação também na conta dele. |
 | 23/11/2026 | 4 | Conectar a conta **ainda não ativa** a cobrança on-line: os membros seguem vendo a chave PIX até a Sprint 5. |
+| 23/11/2026 | 5 | A notificação do Mercado Pago **nunca é prova de pagamento**: o status só muda depois de consultar o pagamento na API com o token da igreja e conferir a referência (id da oferta) e o valor. A assinatura é uma camada extra. |
+| 23/11/2026 | 5 | PIX vale 60 minutos (o Mercado Pago aceita de 30 min a 30 dias). Ofertas pendentes aparecem no histórico; as que vencem viram "Expirado". |
+| 23/11/2026 | 5 | O pagador precisa ter e-mail no cadastro (exigência do Mercado Pago); sem e-mail, a API pede para cadastrar. |
 | 23/11/2026 | 0 | Migrações ficam em `src/migrations/` porque `**/scripts/` está no `.gitignore`. |
 | 23/11/2026 | 0 | O app não define `trust proxy`; por isso o aceite grava `ip` e também o cabeçalho `X-Forwarded-For` bruto. Revisar se o proxy da Hostinger exige `app.set("trust proxy", ...)`. |
 
@@ -217,6 +224,7 @@
 | Data | Sprint | Entregue | Pendente / observações |
 |---|---|---|---|
 | 23/11/2026 | — | URS, plano e este documento de status criados. | Nenhuma sprint iniciada. |
+| 23/11/2026 | 5 | PIX real na conta da igreja via Mercado Pago, webhook seguro (consulta na API, assinatura, idempotência), confirmação automática de inscrições, conciliação e expiração, telas com confirmação automática (site e app). | **Antes do deploy:** cadastrar no painel do Mercado Pago (Webhooks da aplicação) a URL `https://<api>/athos_adm/api/payments/mercadopago/webhook`, evento "Pagamentos", e copiar a chave secreta para `MP_WEBHOOK_SECRET`; sem Redis, criar cron a cada 10–15 min chamando `/internal/cron/mercadopago-reconcile`. Fazer o teste real (5.11) com valor baixo antes de divulgar. |
 | 23/11/2026 | 4 | Conexão OAuth da conta Mercado Pago da igreja (PKCE, state de uso único, tokens criptografados), renovação diária, status e desconexão; card no painel. | **Antes do deploy:** (1) criar a aplicação no Mercado Pago (conta da Athos), cadastrar a URL de redirecionamento `https://<api>/athos_adm/api/payments/mercadopago/callback` e ativar PKCE; (2) definir `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_REDIRECT_URI`, `ADMIN_PANEL_URL`, `TOKEN_ENCRYPTION_KEY` (guardar cópia segura) e `CRON_SECRET`; (3) sem Redis, criar cron diário na Hostinger chamando a rota interna. Sem essas variáveis o card mostra "em preparação" e nada quebra. |
 | 23/11/2026 | 3 | Chave PIX da igreja com BR Code/QR reais, painel "Ofertas (PIX)", telas de oferta no site e no app, inscrição paga com PIX e confirmação manual, fim das cobranças simuladas em produção, webhook protegido, Stripe removido. | **Antes do deploy:** cadastrar a chave PIX da igreja-piloto no painel (Ofertas (PIX)); **não** definir `PAYMENTS_MOCK_ENABLED` em produção; deixar `PAYMENT_WEBHOOK_SECRET` vazio (webhook desligado) até a Sprint 5. Inscrições pagas passam a ficar "registradas" até a secretaria confirmar (mudar para "confirmada" no painel de eventos). Publicar nova versão do app para corrigir as inscrições. |
 | 23/11/2026 | 2 | Consentimento específico para ficha médica (próprio e de menores), bloqueio e ocultação sem consentimento, revogação que apaga os dados, aceite no cadastro, exportação de dados, exclusão incluindo filhos. Novo texto `sensitive_data_consent.md`. | **Antes do deploy:** rodar `npm run legal:publish` (agora também publica o termo de dados sensíveis). **Atenção:** após o deploy, as fichas médicas já cadastradas ficam ocultas até cada titular (ou responsável) consentir — avise a igreja-piloto. Os dados continuam no banco; decidir se serão apagados após um prazo sem consentimento (ver decisões). |

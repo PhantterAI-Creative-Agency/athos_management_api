@@ -9,5 +9,7 @@ router.get("/cron/media-youtube-sync", mediaSyncLimiter, internalController.sync
 
 // Renovação diária dos tokens do Mercado Pago (alternativa ao BullMQ quando não há Redis).
 router.post("/cron/mercadopago-refresh-tokens", requireCronSecret, internalController.refreshMercadoPagoTokens);
+// Conciliação de pagamentos pendentes (rodar a cada 10–15 min quando não há Redis).
+router.post("/cron/mercadopago-reconcile", requireCronSecret, internalController.reconcileMercadoPago);
 
 export default router;

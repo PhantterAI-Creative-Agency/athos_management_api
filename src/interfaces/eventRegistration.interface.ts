@@ -43,4 +43,6 @@ export interface RegisterEventResultDTO extends EventRegistrationDTO {
   paymentConfirmation?: "automatic" | "manual";
   /** Chave PIX da igreja (quando a confirmação é manual), para exibir/copiar. */
   pixKey?: { keyType: string; keyFormatted: string; receiverName: string };
+  /** Validade do PIX (cobrança do Mercado Pago). */
+  expiresAt?: string;
 }

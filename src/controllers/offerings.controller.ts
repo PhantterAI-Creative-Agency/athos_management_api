@@ -85,3 +85,12 @@ export async function pix(req: Request, res: Response, next: NextFunction): Prom
     next(error);
   }
 }
+
+/** Como a igreja recebe ofertas: Mercado Pago (automático), chave PIX (manual) ou nenhum. */
+export async function paymentOptions(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    sendSuccess(res, await offeringsService.getPaymentOptions(req.user!.churchId));
+  } catch (error) {
+    next(error);
+  }
+}

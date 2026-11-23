@@ -45,7 +45,12 @@ export interface OfferingDTO {
   // Inclui valores antigos (stripe, pagarme) de registros anteriores à decisão de usar só o Mercado Pago.
   provider: string;
   providerPaymentId: string;
-  status: "pending" | "paid" | "failed" | "refunded";
+  status: "pending" | "paid" | "failed" | "expired" | "refunded";
+  /** Enquanto pendente: dados do PIX para reexibir (cobrança do Mercado Pago). */
+  pixCopyPaste?: string;
+  pixQrCode?: string;
+  expiresAt?: string;
+  paidAt?: string;
   createdAt: string;
 }
 

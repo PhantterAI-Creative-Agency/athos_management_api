@@ -23,6 +23,8 @@ router.get(
   offeringsController.summary,
 );
 
+router.get("/payment-options", authenticate, requireFeature("onlineOfferings"), offeringsController.paymentOptions);
+
 // Chave PIX da igreja com BR Code e QR Code (valor opcional).
 router.get(
   "/pix",
