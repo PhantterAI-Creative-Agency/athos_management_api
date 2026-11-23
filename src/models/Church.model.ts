@@ -75,6 +75,18 @@ const churchSchema = new Schema(
       ],
       default: undefined,
     },
+    // Chave PIX da própria igreja, exibida para ofertas enquanto não há integração com o
+    // Mercado Pago (Sprint 3 do plano). O dinheiro cai direto na conta dona da chave.
+    pix: {
+      type: {
+        keyType: { type: String, enum: ["cpf", "cnpj", "email", "phone", "random"], required: true },
+        key: { type: String, required: true },
+        receiverName: { type: String, required: true },
+        city: { type: String, required: true },
+      },
+      _id: false,
+      default: undefined,
+    },
     serviceSchedule: [
       {
         day: { type: String, required: true },

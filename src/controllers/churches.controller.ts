@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import * as churchesService from "../services/churches.service";
+import * as pixService from "../services/pix.service";
+import type { SetPixConfigDTO } from "../interfaces/pix.interface";
 import { sendSuccess } from "../helpers/response.helper";
 import { auditLog } from "../helpers/auditLogger.helper";
 import type {
@@ -84,6 +86,35 @@ export async function updateMyFeatures(req: Request, res: Response, next: NextFu
     const features = await churchesService.updateChurchFeatures(req.user!.churchId, body);
     await auditLog("UPDATE", "ChurchFeatures", req.user!.churchId, { changes: body }, req);
     sendSuccess(res, features);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMyPix(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    sendSuccess(res, await pixService.getPixConfig(req.user!.churchId));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function setMyPix(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const body = req.validated?.body as SetPixConfigDTO;
+    const pix = await pixService.setPixConfig(req.user!.churchId, body);
+    await auditLog("UPDATE", "ChurchPix", req.user!.churchId, { keyType: pix.keyType }, req);
+    sendSuccess(res, pix);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function removeMyPix(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await pixService.removePixConfig(req.user!.churchId);
+    await auditLog("DELETE", "ChurchPix", req.user!.churchId, undefined, req);
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

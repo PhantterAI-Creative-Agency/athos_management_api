@@ -1,5 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import * as offeringsService from "../services/offerings.service";
+import { buildChurchPixCharge } from "../services/pix.service";
+import { AppError } from "../middlewares/errorHandler";
+import type { PixChargeQueryDTO } from "../interfaces/pix.interface";
 import { enqueuePaymentWebhook } from "../jobs/paymentWebhook.job";
 import { sendSuccess } from "../helpers/response.helper";
 import { auditLog } from "../helpers/auditLogger.helper";
@@ -56,6 +59,28 @@ export async function webhook(req: Request, res: Response, next: NextFunction): 
     await enqueuePaymentWebhook(body);
     await auditLog("OTHER", "Payment", undefined, { provider: body.provider, status: body.status }, req);
     sendSuccess(res, { received: true });
+  } catch (error) {
+    next(error);
+  }
+}
+
+const PIX_DESCRIPTIONS: Record<NonNullable<PixChargeQueryDTO["type"]>, string> = {
+  contribution: "Dizimo",
+  donation: "Oferta",
+};
+
+/** PIX copia e cola + QR na chave da própria igreja (sem confirmação automática). */
+export async function pix(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const query = req.validated?.query as PixChargeQueryDTO;
+    const charge = await buildChurchPixCharge(req.user!.churchId, {
+      amount: query.amount,
+      description: query.type ? PIX_DESCRIPTIONS[query.type] : undefined,
+    });
+    if (!charge) {
+      throw new AppError(404, "PIX_NOT_CONFIGURED", "A igreja ainda não cadastrou a chave PIX para ofertas");
+    }
+    sendSuccess(res, charge);
   } catch (error) {
     next(error);
   }

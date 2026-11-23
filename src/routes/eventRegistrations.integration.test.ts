@@ -259,7 +259,10 @@ describe("Webhook de pagamento confirma inscrição paga", () => {
     const offering = await Offering.findById(registerResponse.body.data.paymentId);
     expect(offering).toBeTruthy();
 
-    const webhookResponse = await request(app).post("/athos_adm/api/payments/webhook").send({
+    const webhookResponse = await request(app)
+      .post("/athos_adm/api/payments/webhook")
+      .set("X-Webhook-Secret", "test-webhook-secret")
+      .send({
       provider: offering!.provider,
       providerPaymentId: offering!.providerPaymentId,
       status: "paid",

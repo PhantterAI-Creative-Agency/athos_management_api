@@ -8,6 +8,7 @@ import {
   listOfferingsQuerySchema,
   offeringsSummaryQuerySchema,
 } from "../interfaces/offering.interface";
+import { pixChargeQuerySchema } from "../interfaces/pix.interface";
 
 const router = Router();
 
@@ -20,6 +21,15 @@ router.get(
   authenticate,
   validate(offeringsSummaryQuerySchema, "query"),
   offeringsController.summary,
+);
+
+// Chave PIX da igreja com BR Code e QR Code (valor opcional).
+router.get(
+  "/pix",
+  authenticate,
+  requireFeature("onlineOfferings"),
+  validate(pixChargeQuerySchema, "query"),
+  offeringsController.pix,
 );
 
 router.get("/:id", authenticate, offeringsController.getById);

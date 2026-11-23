@@ -1,6 +1,8 @@
 import { Event } from "../models/Event.model";
 import { EventRegistration } from "../models/EventRegistration.model";
 import { createEventRegistrationOffering } from "./offerings.service";
+import { buildChurchPixCharge } from "./pix.service";
+import { isPaymentsMockEnabled } from "../helpers/paymentProvider.helper";
 import type { AuthTokenPayload } from "../helpers/jwt.helper";
 import { AppError } from "../middlewares/errorHandler";
 import type {
@@ -91,6 +93,33 @@ export async function registerForEvent(
 
   const price = event.price ?? 0;
 
+  if (price > 0 && !isPaymentsMockEnabled()) {
+    // Sem pagamento on-line: inscrição fica "registered" (aguardando pagamento) e o membro paga
+    // pelo PIX estático da igreja, com o id da inscrição no txid para facilitar a conferência.
+    const registration = await EventRegistration.create({
+      churchId: requester.churchId,
+      eventId: event._id,
+      userId: requester.sub,
+      status: "registered",
+    });
+
+    const charge = await buildChurchPixCharge(requester.churchId, {
+      amount: price,
+      txid: String(registration._id),
+      description: event.title,
+    });
+
+    return {
+      ...toEventRegistrationDTO(registration),
+      paymentConfirmation: "manual",
+      pixQrCode: charge?.qrCodeDataUrl,
+      pixCopyPaste: charge?.payload,
+      pixKey: charge
+        ? { keyType: charge.keyType, keyFormatted: charge.keyFormatted, receiverName: charge.receiverName }
+        : undefined,
+    };
+  }
+
   if (price > 0) {
     const offeringResult = await createEventRegistrationOffering(
       requester,
@@ -112,6 +141,7 @@ export async function registerForEvent(
       clientSecret: offeringResult.clientSecret,
       pixQrCode: offeringResult.pixQrCode,
       pixCopyPaste: offeringResult.pixCopyPaste,
+      paymentConfirmation: "automatic",
     };
   }
 

@@ -124,7 +124,7 @@ describe("POST /athos_adm/api/offerings", () => {
     expect(response.body.data.type).toBe("donation");
     expect(response.body.data.amount).toBe(100);
     expect(response.body.data.currency).toBe("BRL");
-    expect(response.body.data.provider).toBe("stripe");
+    expect(response.body.data.provider).toBe("mercadopago");
     expect(response.body.data.clientSecret).toEqual(expect.any(String));
     expect(response.body.data.providerPaymentId).toEqual(expect.any(String));
   });
@@ -161,15 +161,15 @@ describe("POST /athos_adm/api/offerings", () => {
     expect(response.body.data.pixCopyPaste).toEqual(expect.any(String));
   });
 
-  it("não retorna campos de Pix para provedores sem Pix nativo (ex.: stripe)", async () => {
-    const response = await request(app)
-      .post("/athos_adm/api/offerings")
-      .set("Authorization", `Bearer ${memberAccessToken}`)
-      .send({ type: "donation", amount: 25, provider: "stripe" });
+  it("rejeita Stripe e Pagar.me: só o Mercado Pago é aceito", async () => {
+    for (const provider of ["stripe", "pagarme"]) {
+      const response = await request(app)
+        .post("/athos_adm/api/offerings")
+        .set("Authorization", `Bearer ${memberAccessToken}`)
+        .send({ type: "donation", amount: 25, provider });
 
-    expect(response.status).toBe(201);
-    expect(response.body.data.pixQrCode).toBeUndefined();
-    expect(response.body.data.pixCopyPaste).toBeUndefined();
+      expect(response.status).toBe(400);
+    }
   });
 
   it("rejeita provedor desconhecido", async () => {
@@ -249,8 +249,11 @@ describe("GET /athos_adm/api/offerings/summary", () => {
       .set("Authorization", `Bearer ${memberAccessToken}`)
       .send({ type: "donation", amount: 75 });
 
-    await request(app).post("/athos_adm/api/payments/webhook").send({
-      provider: "stripe",
+    await request(app)
+      .post("/athos_adm/api/payments/webhook")
+      .set("X-Webhook-Secret", "test-webhook-secret")
+      .send({
+      provider: "mercadopago",
       providerPaymentId: created.body.data.providerPaymentId,
       status: "paid",
     });
@@ -354,7 +357,10 @@ describe("POST /athos_adm/api/payments/webhook", () => {
       .set("Authorization", `Bearer ${memberAccessToken}`)
       .send({ type: "donation", amount: 60, provider: "mercadopago" });
 
-    const webhookResponse = await request(app).post("/athos_adm/api/payments/webhook").send({
+    const webhookResponse = await request(app)
+      .post("/athos_adm/api/payments/webhook")
+      .set("X-Webhook-Secret", "test-webhook-secret")
+      .send({
       provider: "mercadopago",
       providerPaymentId: created.body.data.providerPaymentId,
       status: "paid",
@@ -375,8 +381,11 @@ describe("POST /athos_adm/api/payments/webhook", () => {
       .set("Authorization", `Bearer ${memberAccessToken}`)
       .send({ type: "donation", amount: 42 });
 
-    const webhookResponse = await request(app).post("/athos_adm/api/payments/webhook").send({
-      provider: "stripe",
+    const webhookResponse = await request(app)
+      .post("/athos_adm/api/payments/webhook")
+      .set("X-Webhook-Secret", "test-webhook-secret")
+      .send({
+      provider: "mercadopago",
       providerPaymentId: created.body.data.providerPaymentId,
       status: "paid",
     });
@@ -396,14 +405,20 @@ describe("POST /athos_adm/api/payments/webhook", () => {
       .set("Authorization", `Bearer ${memberAccessToken}`)
       .send({ type: "donation", amount: 15 });
 
-    await request(app).post("/athos_adm/api/payments/webhook").send({
-      provider: "stripe",
+    await request(app)
+      .post("/athos_adm/api/payments/webhook")
+      .set("X-Webhook-Secret", "test-webhook-secret")
+      .send({
+      provider: "mercadopago",
       providerPaymentId: created.body.data.providerPaymentId,
       status: "paid",
     });
 
-    const secondAttempt = await request(app).post("/athos_adm/api/payments/webhook").send({
-      provider: "stripe",
+    const secondAttempt = await request(app)
+      .post("/athos_adm/api/payments/webhook")
+      .set("X-Webhook-Secret", "test-webhook-secret")
+      .send({
+      provider: "mercadopago",
       providerPaymentId: created.body.data.providerPaymentId,
       status: "failed",
     });
@@ -418,8 +433,11 @@ describe("POST /athos_adm/api/payments/webhook", () => {
   });
 
   it("retorna 404 para providerPaymentId inexistente", async () => {
-    const response = await request(app).post("/athos_adm/api/payments/webhook").send({
-      provider: "stripe",
+    const response = await request(app)
+      .post("/athos_adm/api/payments/webhook")
+      .set("X-Webhook-Secret", "test-webhook-secret")
+      .send({
+      provider: "mercadopago",
       providerPaymentId: "inexistente_123",
       status: "paid",
     });

@@ -4,7 +4,7 @@ import { PAYMENT_PROVIDERS } from "../models/Offering.model";
 export const createOfferingSchema = z.object({
   type: z.enum(["contribution", "donation"]),
   amount: z.number().positive("O valor deve ser maior que zero"),
-  provider: z.enum(PAYMENT_PROVIDERS).default("stripe"),
+  provider: z.enum(PAYMENT_PROVIDERS).default("mercadopago"),
 });
 
 export type CreateOfferingDTO = z.infer<typeof createOfferingSchema>;
@@ -42,7 +42,8 @@ export interface OfferingDTO {
   relatedEventId?: string;
   amount: number;
   currency: "BRL";
-  provider: PaymentProvider;
+  // Inclui valores antigos (stripe, pagarme) de registros anteriores à decisão de usar só o Mercado Pago.
+  provider: string;
   providerPaymentId: string;
   status: "pending" | "paid" | "failed" | "refunded";
   createdAt: string;

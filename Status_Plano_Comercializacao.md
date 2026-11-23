@@ -2,7 +2,7 @@
 
 **Plano:** [`PLANO_Comercializacao.md`](./PLANO_Comercializacao.md)
 **Requisitos:** [`URS_Comercializacao.md`](./URS_Comercializacao.md)
-**Última atualização:** 23/11/2026 (fim da Sprint 2)
+**Última atualização:** 23/11/2026 (fim da Sprint 3)
 
 > **Como atualizar (ao final de cada sprint):**
 > 1. Marque as tarefas concluídas com `[x]` e as parciais com `[~]`.
@@ -22,7 +22,7 @@
 | 0 | Fundação (documentos legais, aceites, feature flags) | Concluída | 23/11/2026 | 23/11/2026 | 7/7 |
 | 1 | Termos, Política, Contrato e DPA | Concluída (exceto revisão jurídica) | 23/11/2026 | 23/11/2026 | 9/10 |
 | 2 | Consentimento dos membros (LGPD) | Concluída | 23/11/2026 | 23/11/2026 | 8/8 |
-| 3 | PIX provisório e fim do fluxo simulado | Não iniciada | — | — | 0/7 |
+| 3 | PIX provisório e fim do fluxo simulado | Concluída | 23/11/2026 | 23/11/2026 | 7/7 |
 | 4 | Mercado Pago: OAuth | Não iniciada | — | — | 0/9 |
 | 5 | Mercado Pago: PIX e webhook | Não iniciada | — | — | 0/11 |
 | 6 | Rádio opcional com aceite | Não iniciada | — | — | 0/6 |
@@ -90,13 +90,17 @@
 
 ## Sprint 3 — PIX provisório e fim do fluxo simulado
 
-- [ ] 3.1 Campo `Church.pix`
-- [ ] 3.2 Geração do BR Code estático
-- [ ] 3.3 Cadastro da chave no painel
-- [ ] 3.4 Tela de ofertas no site e no app
-- [ ] 3.5 Remover `stripe`/`pagarme`; padrão `mercadopago`
-- [ ] 3.6 Mock desligado em produção
-- [ ] 3.7 Webhook atual fechado ou protegido
+- [x] 3.1 Campo `Church.pix` (tipo, chave normalizada, recebedor, cidade) + `GET/PUT/DELETE /churches/me/pix` (admin)
+- [x] 3.2 BR Code estático — `src/helpers/pix.helper.ts` (CRC16 validado contra o exemplo do manual do Banco Central) + QR Code PNG (`qrcode`) em `GET /offerings/pix`
+- [x] 3.3 Painel: página "Ofertas (PIX)" com cadastro da chave e pré-visualização
+- [x] 3.4 Tela de ofertas (site e app): valor opcional → QR + copia e cola + chave, com aviso de que não há confirmação automática
+- [x] 3.5 Só `mercadopago` aceito em novas cobranças (Stripe/Pagar.me recusados; registros antigos continuam válidos); dependência `stripe` removida
+- [x] 3.6 Cobrança simulada só com `PAYMENTS_MOCK_ENABLED=true` ou em testes; em produção `POST /offerings` responde 409 e inscrições pagas usam o PIX da igreja com confirmação manual
+- [x] 3.7 Webhook exige `X-Webhook-Secret` = `PAYMENT_WEBHOOK_SECRET`; sem a variável, fica desligado (404)
+
+**Validação:** suíte da API: 441 testes (19 novos). Site: build ok e fluxo testado no navegador (chave inválida recusada → chave salva com pré-visualização → membro gera PIX de R$ 50 com QR e chave). App: typecheck e lint sem erros novos; não executado em aparelho.
+
+**Bugs corrigidos:** o app enviava `provider: 'pix'` ao se inscrever em eventos e ao ofertar — valor que a API recusa — então **inscrição em qualquer evento pelo app falhava** e a tela de ofertas do app não funcionava. Corrigido.
 
 ## Sprint 4 — Mercado Pago: OAuth
 
@@ -187,6 +191,9 @@
 | 23/11/2026 | 2 | O aceite no cadastro é **opcional na API** para não quebrar versões antigas do app nas lojas; quem não enviar aceita pelo modal no primeiro acesso. Site e app novos exigem o checkbox. |
 | 23/11/2026 | 2 | Fichas médicas antigas, sem consentimento, ficam **ocultas, não apagadas**. Pendente: definir com o advogado um prazo para apagá-las se o consentimento não vier. |
 | 23/11/2026 | 2 | A exclusão de dados continua sendo um pedido atendido manualmente (e-mail para a equipe); a automação da exclusão não estava no escopo. |
+| 23/11/2026 | 3 | O QR Code é gerado na API (PNG em data URL) para o site; o app desenha o QR a partir do copia e cola (já tinha `react-native-qrcode-svg`). |
+| 23/11/2026 | 3 | Oferta por PIX estático **não cria registro** de oferta (não há como confirmar). O histórico mostra só ofertas confirmadas pelo sistema; a tela avisa isso. |
+| 23/11/2026 | 3 | Inscrição em evento pago sem pagamento on-line: fica "registrada" e o PIX leva o id da inscrição no campo txid, para a secretaria conferir no extrato. Sem chave cadastrada, a inscrição é aceita e o membro é orientado a combinar com a secretaria. |
 | 23/11/2026 | 0 | Migrações ficam em `src/migrations/` porque `**/scripts/` está no `.gitignore`. |
 | 23/11/2026 | 0 | O app não define `trust proxy`; por isso o aceite grava `ip` e também o cabeçalho `X-Forwarded-For` bruto. Revisar se o proxy da Hostinger exige `app.set("trust proxy", ...)`. |
 
@@ -205,6 +212,7 @@
 | Data | Sprint | Entregue | Pendente / observações |
 |---|---|---|---|
 | 23/11/2026 | — | URS, plano e este documento de status criados. | Nenhuma sprint iniciada. |
+| 23/11/2026 | 3 | Chave PIX da igreja com BR Code/QR reais, painel "Ofertas (PIX)", telas de oferta no site e no app, inscrição paga com PIX e confirmação manual, fim das cobranças simuladas em produção, webhook protegido, Stripe removido. | **Antes do deploy:** cadastrar a chave PIX da igreja-piloto no painel (Ofertas (PIX)); **não** definir `PAYMENTS_MOCK_ENABLED` em produção; deixar `PAYMENT_WEBHOOK_SECRET` vazio (webhook desligado) até a Sprint 5. Inscrições pagas passam a ficar "registradas" até a secretaria confirmar (mudar para "confirmada" no painel de eventos). Publicar nova versão do app para corrigir as inscrições. |
 | 23/11/2026 | 2 | Consentimento específico para ficha médica (próprio e de menores), bloqueio e ocultação sem consentimento, revogação que apaga os dados, aceite no cadastro, exportação de dados, exclusão incluindo filhos. Novo texto `sensitive_data_consent.md`. | **Antes do deploy:** rodar `npm run legal:publish` (agora também publica o termo de dados sensíveis). **Atenção:** após o deploy, as fichas médicas já cadastradas ficam ocultas até cada titular (ou responsável) consentir — avise a igreja-piloto. Os dados continuam no banco; decidir se serão apagados após um prazo sem consentimento (ver decisões). |
 | 23/11/2026 | 1 | Minutas de Termos, Política, Contrato e DPA; publicação a partir de arquivos (`legal:publish`, idempotente, `--minor`); placeholders do fornecedor por variável de ambiente; exportação de evidências; páginas públicas, modal de aceite (site e app), bloqueio do painel até o aceite do contrato, página "Documentos legais". | **Antes do deploy:** definir `LEGAL_PROVIDER_NAME`, `LEGAL_PROVIDER_DOCUMENT`, `LEGAL_PROVIDER_EMAIL` e `LEGAL_FORUM_CITY` (senão os textos mostram `[RAZÃO SOCIAL DO FORNECEDOR]` etc.), cadastrar o e-mail de contato da igreja no painel, e rodar `npm run legal:publish` com `APP_ENV=production`. A partir daí **todos os usuários** verão o modal de aceite no próximo acesso e o **admin da igreja-piloto** ficará bloqueado no painel até aceitar o contrato. Recomendo publicar só depois da revisão do advogado (1.10), ou publicar já e publicar a v2 revisada depois (exigirá novo aceite). |
 | 23/11/2026 | 0 | Documentos legais versionados e imutáveis, registro de aceites/revogações com evidência (IP, X-Forwarded-For, user-agent, hash do texto exibido), pendências por usuário/igreja, feature flags por igreja, migração da igreja-piloto, 31 testes novos (suíte: 395 passando). | **Antes do deploy:** rodar `npm run migrate:pilot-radio -- <slug-da-piloto>` com `APP_ENV=production` (usa `tsx`, que é dependência de desenvolvimento). Nenhum documento está publicado ainda: `/legal/pending` retorna vazio até a Sprint 1. Site e app ainda não consomem as rotas novas. |

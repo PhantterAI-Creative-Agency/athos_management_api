@@ -10,6 +10,7 @@ import {
   updateChurchFeaturesSchema,
   updateChurchSchema,
 } from "../interfaces/church.interface";
+import { setPixConfigSchema } from "../interfaces/pix.interface";
 
 const router = Router();
 
@@ -35,6 +36,11 @@ router.patch(
   validate(updateChurchFeaturesSchema),
   churchesController.updateMyFeatures,
 );
+
+// Chave PIX da igreja para ofertas (o dinheiro cai direto na conta da igreja).
+router.get("/me/pix", authenticate, withRole(["admin"]), churchesController.getMyPix);
+router.put("/me/pix", authenticate, withRole(["admin"]), validate(setPixConfigSchema), churchesController.setMyPix);
+router.delete("/me/pix", authenticate, withRole(["admin"]), churchesController.removeMyPix);
 
 // Dados gerais da igreja, identificados pelo slug (deve ser o da igreja do usuário logado)
 router.get("/:slug", authenticate, trackAuthenticatedAccess(), churchesController.getBySlug);

@@ -14,7 +14,7 @@ API do **Athos Management**: plataforma de gestão eclesiástica + módulo de le
 | Filas/jobs | BullMQ + Redis (ioredis) |
 | Logging | pino + pino-http |
 | Segurança | helmet, cors, express-rate-limit (+ rate-limit-redis) |
-| Pagamentos | Stripe |
+| Pagamentos | Mercado Pago (em integração) + PIX estático da igreja (BR Code, `qrcode`) |
 | Push | Expo Server SDK + Firebase Admin |
 | E-mail | Nodemailer (Gmail SMTP) |
 | Storage | AWS S3 (URLs pré-assinadas) |
@@ -81,6 +81,8 @@ O arquivo carregado depende de `APP_ENV` (`local` → `.env.local`, `qa` → `.e
 | `GMAIL_APP_NAME` / `GMAIL_APP_MAIL` / `GMAIL_APP_PASSWORD` | não | — | SMTP para envio de e-mail |
 | `CRON_SECRET` | não | — | Protege endpoints de cron internos |
 | `LEGAL_PROVIDER_NAME` / `LEGAL_PROVIDER_DOCUMENT` / `LEGAL_PROVIDER_EMAIL` | não (definir em produção) | `[RAZÃO SOCIAL…]` etc. | Dados do fornecedor exibidos nos Termos, Política, Contrato e DPA |
+| `PAYMENT_WEBHOOK_SECRET` | não | — | Segredo exigido no cabeçalho `X-Webhook-Secret` do webhook de pagamentos; sem ele o webhook fica desligado |
+| `PAYMENTS_MOCK_ENABLED` | não | `false` (`true` nos testes) | Liga cobranças simuladas; **nunca** em produção |
 | `LEGAL_FORUM_CITY` | não (definir em produção) | `[CIDADE/UF DO FORO]` | Foro do Contrato |
 
 ### Scripts
@@ -160,13 +162,13 @@ Todos montados em `/athos_adm/api/...` (ver `src/routes/index.ts`):
 |---|---|
 | `/auth` | Login, refresh, OAuth, logout |
 | `/users` | Criação de usuário, perfil, família |
-| `/churches` | Registro de igreja, busca, dados da igreja, recursos ligados/desligados (`/me/features`) |
+| `/churches` | Registro de igreja, busca, dados da igreja, recursos ligados/desligados (`/me/features`), chave PIX (`/me/pix`) |
 | `/legal` | Documentos legais versionados (Termos, Política, Contrato, DPA, termos de rádio e de dados sensíveis), aceites e revogações com evidência, pendências do usuário |
-| `/events` + inscrições | Eventos e inscrições (com pagamento via Stripe quando aplicável) |
+| `/events` + inscrições | Eventos e inscrições (eventos pagos: PIX da igreja com confirmação manual até a integração do Mercado Pago) |
 | `/ministries` | Ministérios e voluntários (lista já vem ordenada com ministérios do usuário primeiro + flag `isVolunteer`) |
 | `/growth-groups` | Grupos de crescimento (GC), membros |
-| `/offerings` | Ofertas |
-| `/payments` | Webhook de pagamento (Stripe) |
+| `/offerings` | Ofertas; `GET /offerings/pix` gera o PIX copia e cola + QR na chave da igreja |
+| `/payments` | Webhook de pagamento (protegido por `PAYMENT_WEBHOOK_SECRET`; desligado sem ele) |
 | `/mural` | Posts do mural + curtidas |
 | `/media` | Mídia (S3 presigned, sync YouTube) |
 | `/devotionals` | Devocionais |
