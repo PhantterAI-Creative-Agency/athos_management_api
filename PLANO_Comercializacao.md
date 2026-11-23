@@ -40,7 +40,7 @@ As sprints 1 e 2 dependem da 0. A 5 depende da 4. A 6 depende da 0. A 8 depende 
 | # | Tarefa | Repo |
 |---|---|---|
 | 0.1 | Model `LegalDocument`: `type` (`terms`, `privacy`, `saas_contract`, `dpa`, `radio_liability`, `sensitive_data_consent`), `version`, `content` (markdown com placeholders), `contentHash` (SHA-256), `publishedAt`, `requiresReacceptance`. | API |
-| 0.2 | Model `LegalAcceptance` (somente inserção): `userId`, `churchId`, `documentId`, `documentType`, `version`, `contentHash`, `acceptedAt`, `ip`, `userAgent`, `onBehalfOfUserId` (para menores), `signer` (nome, CPF, cargo, CNPJ — só para contrato), `revokedAt`. | API |
+| 0.2 | Model `LegalAcceptance` (somente inserção): `action` (`accept`/`revoke`), `userId`, `churchId`, `documentId`, `documentType`, `version`, `contentHash`, `renderedHash`, `ip`, `forwardedFor`, `userAgent`, `onBehalfOfUserId` (para menores), `signer` (nome, CPF, cargo, CNPJ — só para contrato). A revogação é um novo registro, não uma edição. | API |
 | 0.3 | Service e rotas: `GET /legal/:type/current?churchId=` (público, já com o nome da igreja preenchido), `POST /legal/:type/accept` (autenticado, grava IP/UA a partir da request), `GET /legal/pending` (documentos que o usuário ainda precisa aceitar). | API |
 | 0.4 | Bloquear updates e deletes em `LegalAcceptance` no nível do model (hooks Mongoose) e registrar no `AuditLog`. | API |
 | 0.5 | Feature flags em `Church.settings.features`: `radio` (padrão `false`), `ads`, `aiAssistant`, `onlineOfferings`. Middleware `requireFeature(name)`. Migrar `adsEnabled` para `features.ads` mantendo compatibilidade. | API |
@@ -81,7 +81,7 @@ As sprints 1 e 2 dependem da 0. A 5 depende da 4. A 6 depende da 0. A 8 depende 
 | 2.1 | Cadastro com dois blocos: aceite de Termos + Política (obrigatório) e consentimento de dados sensíveis (opcional, separado). | WEB, APP, API |
 | 2.2 | API recusa gravar `medicalRecord` sem consentimento ativo (`403 CONSENT_REQUIRED`). | API |
 | 2.3 | Consentimento em nome do menor ao vincular ou cadastrar filho (`onBehalfOfUserId`), com validação de que o usuário é responsável (`family.helper`). | API, WEB, APP |
-| 2.4 | Revogação: `DELETE /legal/sensitive_data_consent` apaga `medicalRecord` (e dos filhos, se aplicável) e registra `revokedAt`. | API |
+| 2.4 | Revogação: `POST /legal/sensitive_data_consent/revoke` (já existe desde a Sprint 0) passa a apagar `medicalRecord` (e dos filhos, se aplicável). | API |
 | 2.5 | Usuários existentes: ocultar dados sensíveis até o consentimento e pedir o consentimento no próximo login. | API, WEB, APP |
 | 2.6 | Ampliar a solicitação de exclusão de dados para cobrir dados sensíveis e de filhos. | API |
 | 2.7 | Exportação dos dados do titular (`GET /users/me/export`, JSON). | API |
@@ -158,7 +158,7 @@ As sprints 1 e 2 dependem da 0. A 5 depende da 4. A 6 depende da 0. A 8 depende 
 | # | Tarefa | Repo |
 |---|---|---|
 | 6.1 | Documento `radio_liability` v1: texto direto sobre direitos autorais, ECAD e responsabilidade da igreja. | API (conteúdo) |
-| 6.2 | `POST /churches/:id/features/radio/enable`: exige aceite do documento na mesma requisição e grava `LegalAcceptance`. `disable` sem restrição. | API |
+| 6.2 | Ativação: `POST /legal/radio_liability/accept` seguido de `PATCH /churches/me/features { radio: true }` (a API já recusa com 422 sem aceite vigente desde a Sprint 0). Falta publicar o texto e, opcionalmente, desligar a rádio ao revogar o termo. | API |
 | 6.3 | Aplicar `requireFeature("radio")` em todas as rotas de rádio e de upload de áudio. | API |
 | 6.4 | Modal de ativação no painel com o texto, checkbox e confirmação. | WEB |
 | 6.5 | Ocultar menus e telas da rádio no site e no app quando a flag estiver desligada. | WEB, APP |

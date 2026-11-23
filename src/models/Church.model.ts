@@ -24,6 +24,13 @@ const churchSchema = new Schema(
       youtubeChannelId: { type: String },
       adsEnabled: { type: Boolean, required: true, default: true },
       disabledAdPlacements: { type: [String], required: true, default: [] },
+      // Recursos ligados/desligados por igreja (ver helpers/features.helper.ts). "ads" continua
+      // em `adsEnabled` acima, por compatibilidade com os clientes atuais.
+      features: {
+        radio: { type: Boolean, default: false },
+        aiAssistant: { type: Boolean, default: true },
+        onlineOfferings: { type: Boolean, default: true },
+      },
     },
     homeContent: {
       intro: { type: String },

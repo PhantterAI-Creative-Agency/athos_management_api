@@ -2,7 +2,7 @@
 
 **Plano:** [`PLANO_Comercializacao.md`](./PLANO_Comercializacao.md)
 **Requisitos:** [`URS_Comercializacao.md`](./URS_Comercializacao.md)
-**Última atualização:** 23/11/2026
+**Última atualização:** 23/11/2026 (fim da Sprint 0)
 
 > **Como atualizar (ao final de cada sprint):**
 > 1. Marque as tarefas concluídas com `[x]` e as parciais com `[~]`.
@@ -19,7 +19,7 @@
 
 | Sprint | Tema | Status | Início | Fim | Progresso |
 |---|---|---|---|---|---|
-| 0 | Fundação (documentos legais, aceites, feature flags) | Não iniciada | — | — | 0/7 |
+| 0 | Fundação (documentos legais, aceites, feature flags) | Concluída | 23/11/2026 | 23/11/2026 | 7/7 |
 | 1 | Termos, Política, Contrato e DPA | Não iniciada | — | — | 0/10 |
 | 2 | Consentimento dos membros (LGPD) | Não iniciada | — | — | 0/8 |
 | 3 | PIX provisório e fim do fluxo simulado | Não iniciada | — | — | 0/7 |
@@ -43,13 +43,20 @@
 
 ## Sprint 0 — Fundação
 
-- [ ] 0.1 Model `LegalDocument`
-- [ ] 0.2 Model `LegalAcceptance` (somente inserção)
-- [ ] 0.3 Rotas `/legal/:type/current`, `/legal/:type/accept`, `/legal/pending`
-- [ ] 0.4 Bloqueio de update/delete em aceites + `AuditLog`
-- [ ] 0.5 Feature flags em `Church.settings.features` + `requireFeature`
-- [ ] 0.6 Migração da igreja-piloto (`radio: true` provisório)
-- [ ] 0.7 Testes de integração
+- [x] 0.1 Model `LegalDocument` — `src/models/LegalDocument.model.ts`
+- [x] 0.2 Model `LegalAcceptance` (somente inserção) — `src/models/LegalAcceptance.model.ts`
+- [x] 0.3 Rotas `/legal/:type/current`, `/legal/:type/accept`, `/legal/pending` (+ `/legal/:type/revoke`, `GET/POST /legal/documents`) — `src/routes/legal.routes.ts`
+- [x] 0.4 Bloqueio de update/delete em aceites e documentos + `AuditLog` (`ACCEPT`/`REVOKE`) — `src/helpers/immutable.helper.ts`
+- [x] 0.5 Feature flags em `Church.settings.features` + `requireFeature` + `GET/PATCH /churches/me/features` — `src/helpers/features.helper.ts`, `src/middlewares/requireFeature.ts`
+- [x] 0.6 Migração da igreja-piloto (`radio: true` provisório) — `src/migrations/enablePilotRadio.ts` (**ainda não executada em produção**)
+- [x] 0.7 Testes de integração — `legal.integration.test.ts` (20) e `features.integration.test.ts` (11)
+
+**Entregue além do previsto:**
+- Validação de CPF e CNPJ do representante legal (`src/helpers/brDocument.helper.ts`); CPF mascarado nas respostas.
+- Aceite em nome de menor já validado pelo vínculo familiar (`isFamilyManager`) — adianta parte da Sprint 2.
+- A API já recusa ligar a rádio sem aceite vigente de `radio_liability` (422) — adianta parte da Sprint 6.
+- `requireFeature` aplicado ao assistente de IA (`POST /ai-chat/messages`) e à criação de ofertas (`POST /offerings`). A rádio **ainda não** é bloqueada pela flag (fica para a 6.3, para não derrubar a igreja-piloto antes da migração).
+- Correção de bug: salvar configurações da igreja (`PATCH /churches/me`) ou de anúncios (`PATCH /ads/settings`) sobrescrevia `settings` inteiro e apagava o `youtubeChannelId`. Agora a atualização é campo a campo.
 
 ## Sprint 1 — Termos, Política de Privacidade, Contrato e DPA
 
@@ -157,6 +164,18 @@
 - [ ] NT-04 Revisão jurídica contratada
 - [ ] NT-05 Roteiro de demonstração e mensagem de indicação
 
+## Decisões tomadas durante a execução
+
+| Data | Sprint | Decisão |
+|---|---|---|
+| 23/11/2026 | 0 | Revogação é um **novo registro** (`action: "revoke"`), não um campo `revokedAt` editável. O estado vigente é o registro mais recente. Mantém a coleção 100% somente inserção. |
+| 23/11/2026 | 0 | O recurso `ads` continua gravado em `settings.adsEnabled` (campo legado usado pelos clientes); `settings.features` guarda só `radio`, `aiAssistant` e `onlineOfferings`. |
+| 23/11/2026 | 0 | Documentos legais são **globais da plataforma** (publicados por `devAdmin`), com placeholders `{{churchName}}`, `{{churchSlug}}`, `{{platformName}}`. O aceite guarda o hash do modelo e o hash do texto exibido. |
+| 23/11/2026 | 0 | Versão publicada com `requiresReacceptance: false` (correção menor) não gera novo aceite; a v1 sempre exige. |
+| 23/11/2026 | 0 | Aceites de escopo "igreja" (Contrato, DPA, rádio) só podem ser feitos por `admin`. |
+| 23/11/2026 | 0 | Migrações ficam em `src/migrations/` porque `**/scripts/` está no `.gitignore`. |
+| 23/11/2026 | 0 | O app não define `trust proxy`; por isso o aceite grava `ip` e também o cabeçalho `X-Forwarded-For` bruto. Revisar se o proxy da Hostinger exige `app.set("trust proxy", ...)`. |
+
 ## Decisões pendentes
 
 | # | Pendência | Prazo | Situação |
@@ -172,3 +191,4 @@
 | Data | Sprint | Entregue | Pendente / observações |
 |---|---|---|---|
 | 23/11/2026 | — | URS, plano e este documento de status criados. | Nenhuma sprint iniciada. |
+| 23/11/2026 | 0 | Documentos legais versionados e imutáveis, registro de aceites/revogações com evidência (IP, X-Forwarded-For, user-agent, hash do texto exibido), pendências por usuário/igreja, feature flags por igreja, migração da igreja-piloto, 31 testes novos (suíte: 395 passando). | **Antes do deploy:** rodar `npm run migrate:pilot-radio -- <slug-da-piloto>` com `APP_ENV=production` (usa `tsx`, que é dependência de desenvolvimento). Nenhum documento está publicado ainda: `/legal/pending` retorna vazio até a Sprint 1. Site e app ainda não consomem as rotas novas. |

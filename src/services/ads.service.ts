@@ -139,13 +139,10 @@ export async function updateAdsSettings(
   const adsEnabled = data.adsEnabled ?? church.settings?.adsEnabled ?? true;
   const disabledAdPlacements = data.disabledAdPlacements ?? church.settings?.disabledAdPlacements ?? [];
 
-  church.settings = {
-    primaryColor: church.settings?.primaryColor ?? "#000000",
-    growthGroupName: church.settings?.growthGroupName ?? "Grupos de Crescimento",
-    growthGroupAcronym: church.settings?.growthGroupAcronym ?? "GC",
-    adsEnabled,
-    disabledAdPlacements,
-  };
+  // Campo a campo: atribuir `church.settings` inteiro apagaria as demais configurações
+  // (youtubeChannelId, feature flags...).
+  church.set("settings.adsEnabled", adsEnabled);
+  church.set("settings.disabledAdPlacements", disabledAdPlacements);
 
   await church.save();
 

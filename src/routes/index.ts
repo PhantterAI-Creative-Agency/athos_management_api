@@ -27,6 +27,7 @@ import contactRoutes from "./contact.routes";
 import dataDeletionRequestsRoutes from "./dataDeletionRequests.routes";
 import internalRoutes from "./internal.routes";
 import dashboardRoutes from "./dashboard.routes";
+import legalRoutes from "./legal.routes";
 
 const router = Router();
 
@@ -58,5 +59,6 @@ router.use("/notifications", notificationsRoutes);
 router.use("/ai-chat", aiChatRoutes);
 router.use("/pastoral-care", pastoralCareRoutes);
 router.use("/dashboard", dashboardRoutes);
+router.use("/legal", legalRoutes);
 
 export default router;

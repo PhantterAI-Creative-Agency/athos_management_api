@@ -9,6 +9,8 @@ export const AUDIT_ACTIONS = [
   "REMOVE_MEMBER",
   "LIKE",
   "CHECKIN",
+  "ACCEPT",
+  "REVOKE",
   "OTHER",
 ] as const;
 

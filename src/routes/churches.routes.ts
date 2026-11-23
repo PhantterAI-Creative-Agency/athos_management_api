@@ -7,6 +7,7 @@ import { trackAuthenticatedAccess } from "../middlewares/trackAccess";
 import {
   registerChurchSchema,
   searchChurchesQuerySchema,
+  updateChurchFeaturesSchema,
   updateChurchSchema,
 } from "../interfaces/church.interface";
 
@@ -23,6 +24,16 @@ router.patch(
   withRole(["admin"]),
   validate(updateChurchSchema),
   churchesController.updateMe,
+);
+
+// Recursos ligados/desligados para a igreja do usuário (rádio, anúncios, IA, ofertas on-line).
+router.get("/me/features", authenticate, churchesController.getMyFeatures);
+router.patch(
+  "/me/features",
+  authenticate,
+  withRole(["admin"]),
+  validate(updateChurchFeaturesSchema),
+  churchesController.updateMyFeatures,
 );
 
 // Dados gerais da igreja, identificados pelo slug (deve ser o da igreja do usuário logado)

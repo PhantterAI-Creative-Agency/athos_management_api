@@ -1,6 +1,13 @@
 import { Types } from "mongoose";
 import { Church } from "../models/Church.model";
 import { AppError } from "../middlewares/errorHandler";
+import {
+  CHURCH_FEATURES,
+  featureSettingsPath,
+  resolveFeatures,
+  type ChurchFeature,
+  type ChurchFeatureSettings,
+} from "../helpers/features.helper";
 import type {
   ChurchDTO,
   FooterWidgetDTO,
@@ -8,7 +15,9 @@ import type {
   ChurchSearchResultDTO,
   RegisterChurchDTO,
   UpdateChurchDTO,
+  UpdateChurchFeaturesDTO,
 } from "../interfaces/church.interface";
+import { hasActiveAcceptance } from "./legal.service";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -47,6 +56,7 @@ function toChurchDTO(church: {
     growthGroupAcronym?: string;
     adsEnabled?: boolean;
     disabledAdPlacements?: string[];
+    features?: ChurchFeatureSettings | null;
   } | null;
   homeContent?: {
     intro?: string | null;
@@ -104,6 +114,7 @@ function toChurchDTO(church: {
       growthGroupAcronym: church.settings?.growthGroupAcronym ?? "GC",
       adsEnabled: church.settings?.adsEnabled ?? true,
       disabledAdPlacements: church.settings?.disabledAdPlacements ?? [],
+      features: resolveFeatures(church.settings),
     },
     homeContent: church.homeContent
       ? {
@@ -236,13 +247,11 @@ export async function updateChurch(
   if (data.phone !== undefined) church.phone = data.phone;
   if (data.about !== undefined) church.about = data.about;
   if (data.settings !== undefined) {
-    church.settings = {
-      primaryColor: data.settings.primaryColor ?? church.settings?.primaryColor ?? "#000000",
-      growthGroupName: data.settings.growthGroupName ?? church.settings?.growthGroupName ?? "Grupos de Crescimento",
-      growthGroupAcronym: data.settings.growthGroupAcronym ?? church.settings?.growthGroupAcronym ?? "GC",
-      adsEnabled: data.settings.adsEnabled ?? church.settings?.adsEnabled ?? true,
-      disabledAdPlacements: data.settings.disabledAdPlacements ?? church.settings?.disabledAdPlacements ?? [],
-    };
+    // Campo a campo: atribuir `church.settings` inteiro apagaria as demais configurações
+    // (youtubeChannelId, feature flags...).
+    for (const [key, value] of Object.entries(data.settings)) {
+      if (value !== undefined) church.set(`settings.${key}`, value);
+    }
   }
   if (data.homeContent !== undefined) {
     const { bannerEventId, ...rest } = data.homeContent;
@@ -270,4 +279,46 @@ export async function updateChurch(
   await church.save();
 
   return toChurchDTO(church);
+}
+
+export async function getChurchFeatures(churchId: string): Promise<Record<ChurchFeature, boolean>> {
+  const church = await Church.findById(churchId).select("settings").lean();
+
+  if (!church) {
+    throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
+  }
+
+  return resolveFeatures(church.settings);
+}
+
+export async function updateChurchFeatures(
+  churchId: string,
+  data: UpdateChurchFeaturesDTO,
+): Promise<Record<ChurchFeature, boolean>> {
+  const church = await Church.findById(churchId);
+
+  if (!church) {
+    throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
+  }
+
+  // A rádio só liga com o aceite vigente do termo de responsabilidade (direitos autorais/ECAD).
+  if (data.radio === true && !resolveFeatures(church.settings).radio) {
+    const accepted = await hasActiveAcceptance({ type: "radio_liability", churchId });
+    if (!accepted) {
+      throw new AppError(
+        422,
+        "FEATURE_REQUIRES_ACCEPTANCE",
+        "Para ativar a rádio, o administrador precisa aceitar o termo de responsabilidade sobre direitos autorais",
+      );
+    }
+  }
+
+  for (const feature of CHURCH_FEATURES) {
+    const value = data[feature];
+    if (value !== undefined) church.set(featureSettingsPath(feature), value);
+  }
+
+  await church.save();
+
+  return resolveFeatures(church.settings);
 }

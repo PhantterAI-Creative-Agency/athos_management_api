@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as offeringsController from "../controllers/offerings.controller";
 import { authenticate } from "../middlewares/authenticate";
 import { validate } from "../middlewares/validate";
+import { requireFeature } from "../middlewares/requireFeature";
 import {
   createOfferingSchema,
   listOfferingsQuerySchema,
@@ -10,7 +11,7 @@ import {
 
 const router = Router();
 
-router.post("/", authenticate, validate(createOfferingSchema), offeringsController.create);
+router.post("/", authenticate, requireFeature("onlineOfferings"), validate(createOfferingSchema), offeringsController.create);
 
 router.get("/", authenticate, validate(listOfferingsQuerySchema, "query"), offeringsController.list);
 

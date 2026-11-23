@@ -6,6 +6,7 @@ import type {
   RegisterChurchDTO,
   SearchChurchesQueryDTO,
   UpdateChurchDTO,
+  UpdateChurchFeaturesDTO,
 } from "../interfaces/church.interface";
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -64,6 +65,25 @@ export async function updateMe(req: Request, res: Response, next: NextFunction):
     const church = await churchesService.updateChurch(req.user!.churchId, body);
     await auditLog("UPDATE", "Church", church.id, { name: church.name }, req);
     sendSuccess(res, church);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMyFeatures(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    sendSuccess(res, await churchesService.getChurchFeatures(req.user!.churchId));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateMyFeatures(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const body = req.validated?.body as UpdateChurchFeaturesDTO;
+    const features = await churchesService.updateChurchFeatures(req.user!.churchId, body);
+    await auditLog("UPDATE", "ChurchFeatures", req.user!.churchId, { changes: body }, req);
+    sendSuccess(res, features);
   } catch (error) {
     next(error);
   }

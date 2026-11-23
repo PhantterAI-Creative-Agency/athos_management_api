@@ -92,6 +92,7 @@ yarn start:qa     # produção em ambiente qa
 yarn typecheck    # tsc --noEmit
 yarn test         # vitest run (única execução)
 yarn test:watch   # vitest em modo watch
+yarn migrate:pilot-radio <slug>   # liga a rádio da igreja-piloto (provisório, ver src/migrations)
 ```
 
 ## Contrato da API
@@ -156,7 +157,8 @@ Todos montados em `/athos_adm/api/...` (ver `src/routes/index.ts`):
 |---|---|
 | `/auth` | Login, refresh, OAuth, logout |
 | `/users` | Criação de usuário, perfil, família |
-| `/churches` | Registro de igreja, busca, dados da igreja |
+| `/churches` | Registro de igreja, busca, dados da igreja, recursos ligados/desligados (`/me/features`) |
+| `/legal` | Documentos legais versionados (Termos, Política, Contrato, DPA, termos de rádio e de dados sensíveis), aceites e revogações com evidência, pendências do usuário |
 | `/events` + inscrições | Eventos e inscrições (com pagamento via Stripe quando aplicável) |
 | `/ministries` | Ministérios e voluntários (lista já vem ordenada com ministérios do usuário primeiro + flag `isVolunteer`) |
 | `/growth-groups` | Grupos de crescimento (GC), membros |

@@ -1,3 +1,4 @@
+import type { ChurchFeature } from "../helpers/features.helper";
 import { z } from "zod";
 
 export const searchChurchesQuerySchema = z.object({
@@ -144,6 +145,7 @@ export interface ChurchDTO {
     growthGroupAcronym: string;
     adsEnabled: boolean;
     disabledAdPlacements: string[];
+    features: Record<ChurchFeature, boolean>;
   };
   homeContent?: {
     intro?: string;
@@ -168,3 +170,16 @@ export interface ChurchDTO {
   footerWidgets?: FooterWidgetDTO[];
   createdAt: string;
 }
+
+export const updateChurchFeaturesSchema = z
+  .object({
+    radio: z.boolean().optional(),
+    ads: z.boolean().optional(),
+    aiAssistant: z.boolean().optional(),
+    onlineOfferings: z.boolean().optional(),
+  })
+  .refine((data) => Object.values(data).some((value) => value !== undefined), {
+    message: "Informe ao menos um recurso para alterar",
+  });
+
+export type UpdateChurchFeaturesDTO = z.infer<typeof updateChurchFeaturesSchema>;
