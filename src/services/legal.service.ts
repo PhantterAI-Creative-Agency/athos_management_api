@@ -387,6 +387,10 @@ export async function revokeDocument(
   if (type === "sensitive_data_consent") {
     await User.updateOne({ _id: data.onBehalfOfUserId ?? user.sub }, { $unset: { medicalRecord: 1 } });
   }
+  // Revogar o termo da rádio desliga a rádio da igreja.
+  if (type === "radio_liability") {
+    await Church.updateOne({ _id: latest.churchId }, { $set: { "settings.features.radio": false } });
+  }
 
   return toAcceptanceDTO(record);
 }

@@ -86,6 +86,17 @@ beforeAll(async () => {
     churchId: String(otherChurch._id),
     roles: ["admin"],
   });
+  // A rádio só funciona ligada e com o termo de responsabilidade aceito (Sprint 6).
+  const { syncDocuments } = await import("../services/legal.service");
+  await syncDocuments([{ type: "radio_liability", title: "Termo da rádio", content: "Responsabilidade ECAD\n" }]);
+  const terms = (await request(app).get("/athos_adm/api/legal/radio_liability/current")).body.data;
+  for (const token of [accessToken, otherChurchAccessToken]) {
+    await request(app)
+      .post("/athos_adm/api/radio/activate")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ version: terms.version, contentHash: terms.contentHash })
+      .expect(200);
+  }
 });
 
 afterAll(async () => {

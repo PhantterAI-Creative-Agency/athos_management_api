@@ -10,6 +10,7 @@ preparadas internamente e **ainda precisam de revisão por advogado** de tecnolo
 | `privacy.md` | `privacy` | Todo usuário |
 | `saas_contract.md` | `saas_contract` | Representante legal da igreja (admin) |
 | `dpa.md` | `dpa` | Representante legal da igreja (admin) |
+| `radio_liability.md` | `radio_liability` | Admin da igreja, ao ativar a rádio (opcional) |
 | `sensitive_data_consent.md` | `sensitive_data_consent` | Titular, ou o responsável em nome do filho (opcional) |
 
 ## Formato

@@ -190,6 +190,7 @@ Todos montados em `/athos_adm/api/...` (ver `src/routes/index.ts`):
 | `/pastoral-care` | Pedidos de cuidado pastoral |
 | `/contact` | Formulário de contato (público, rate limited) |
 | `/public` | Endpoints públicos por slug de igreja (eventos, devocionais, mídia, ministérios) |
+| `/radio` | Rádio da igreja. `GET /radio/status`, `POST /radio/activate` (aceita o termo de responsabilidade e liga) e `POST /radio/deactivate`; as demais rotas exigem rádio ligada **e** termo vigente aceito |
 | `/internal` | Endpoints de cron com `Authorization: Bearer <CRON_SECRET>`: `POST /internal/cron/mercadopago-refresh-tokens` (diário) e `POST /internal/cron/mercadopago-reconcile` (a cada 10–15 min, quando não há Redis) |
 
 ## Jobs (BullMQ)

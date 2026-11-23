@@ -2,8 +2,9 @@
  * Sprint 0 (tarefa 0.6) — mantém a rádio ligada na igreja-piloto depois que a flag
  * `settings.features.radio` passou a existir com padrão `false`.
  *
- * É uma ativação PROVISÓRIA, feita direto no banco sem o aceite do termo de responsabilidade.
- * Na Sprint 6 ela é substituída pelo aceite real do administrador da igreja-piloto.
+ * ATENÇÃO (Sprint 6): a flag sozinha não põe mais a rádio no ar. A rádio só funciona com a flag
+ * ligada E o termo de responsabilidade aceito por um admin (painel → Rádio). Este script ficou
+ * apenas como histórico; para a igreja-piloto, basta o admin aceitar o termo no painel.
  *
  * Uso: npm run migrate:pilot-radio -- <slug-da-igreja>
  * (com APP_ENV=qa|production para apontar para o banco do ambiente correspondente)

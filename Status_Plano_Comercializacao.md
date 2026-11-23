@@ -2,7 +2,7 @@
 
 **Plano:** [`PLANO_Comercializacao.md`](./PLANO_Comercializacao.md)
 **Requisitos:** [`URS_Comercializacao.md`](./URS_Comercializacao.md)
-**Última atualização:** 23/11/2026 (fim da Sprint 5)
+**Última atualização:** 23/11/2026 (fim da Sprint 6)
 
 > **Como atualizar (ao final de cada sprint):**
 > 1. Marque as tarefas concluídas com `[x]` e as parciais com `[~]`.
@@ -25,18 +25,18 @@
 | 3 | PIX provisório e fim do fluxo simulado | Concluída | 23/11/2026 | 23/11/2026 | 7/7 |
 | 4 | Mercado Pago: OAuth | Concluída (falta configurar a aplicação no Mercado Pago) | 23/11/2026 | 23/11/2026 | 8/9 |
 | 5 | Mercado Pago: PIX e webhook | Concluída (falta o teste real) | 23/11/2026 | 23/11/2026 | 10/11 |
-| 6 | Rádio opcional com aceite | Não iniciada | — | — | 0/6 |
+| 6 | Rádio opcional com aceite | Concluída (falta o aceite da igreja-piloto) | 23/11/2026 | 23/11/2026 | 5/6 |
 | 7 | Multi-igreja: temas e onboarding | Não iniciada | — | — | 0/10 |
 | 8 | Planos comerciais e cobrança | Não iniciada | — | — | 0/7 |
 | 9 | Tesouraria | Aguardando requisitos | — | — | — |
 
-**Critérios para o primeiro cliente pagante (URS §11):** 2/6 atendidos no código (valem após o deploy).
+**Critérios para o primeiro cliente pagante (URS §11):** 3/6 atendidos no código (valem após o deploy).
 
 - [x] Nenhum fluxo simulado de pagamento acessível em produção (Sprint 3)
 - [~] PIX real recebido na conta da igreja e confirmado por webhook validado — código pronto (Sprint 5); falta o teste real (5.11)
 - [ ] Termos, Política, Contrato e DPA publicados, versionados e revisados por advogado
 - [x] Aceite do representante legal e consentimentos dos membros registrados (Sprints 1 e 2)
-- [ ] Rádio só funciona após aceite registrado
+- [x] Rádio só funciona após aceite registrado (Sprint 6)
 - [ ] Igreja nova entra no ar pelo painel, sem deploy manual
 
 ---
@@ -136,12 +136,14 @@
 
 ## Sprint 6 — Rádio opcional com aceite
 
-- [ ] 6.1 Documento `radio_liability` v1
-- [ ] 6.2 Rotas de ativar/desativar com aceite
-- [ ] 6.3 `requireFeature("radio")` nas rotas
-- [ ] 6.4 Modal de ativação no painel
-- [ ] 6.5 Ocultar rádio no site e no app
-- [ ] 6.6 Aceite real da igreja-piloto
+- [x] 6.1 Termo `radio_liability` v1 (`src/content/legal/radio_liability.md`), publicado por `npm run legal:publish`
+- [x] 6.2 `GET /radio/status`, `POST /radio/activate` (aceite com evidência + liga numa só ação) e `POST /radio/deactivate`; revogar o termo desliga a rádio
+- [x] 6.3 Todas as rotas de gestão e upload da rádio exigem rádio ligada **e** termo vigente aceito (`requireRadioActive`, 403 `RADIO_INACTIVE`); a rádio pública devolve programação vazia quando inativa
+- [x] 6.4 Painel → Rádio: tela de ativação com aviso direto sobre ECAD, texto integral do termo e dois aceites expressos; botão "Desativar rádio"; aviso de novo aceite quando o termo muda
+- [x] 6.5 Site: o player some sozinho (programação vazia). App: não tem rádio
+- [ ] 6.6 Aceite real da igreja-piloto — **pendente (ação do admin após o deploy)**
+
+**Validação:** suíte da API: 490 testes (9 novos + ajuste nos 13 da rádio). Site: build ok e fluxo testado no navegador (termo exibido → botão bloqueado até os dois aceites → rádio ativada com as abas de gestão).
 
 ## Sprint 7 — Multi-igreja: temas e onboarding
 
@@ -206,6 +208,8 @@
 | 23/11/2026 | 5 | A notificação do Mercado Pago **nunca é prova de pagamento**: o status só muda depois de consultar o pagamento na API com o token da igreja e conferir a referência (id da oferta) e o valor. A assinatura é uma camada extra. |
 | 23/11/2026 | 5 | PIX vale 60 minutos (o Mercado Pago aceita de 30 min a 30 dias). Ofertas pendentes aparecem no histórico; as que vencem viram "Expirado". |
 | 23/11/2026 | 5 | O pagador precisa ter e-mail no cadastro (exigência do Mercado Pago); sem e-mail, a API pede para cadastrar. |
+| 23/11/2026 | 6 | "No ar" = flag ligada **e** termo aceito na versão vigente. Isso cumpre URS-RAD-03 mesmo para a igreja-piloto, que tinha a flag ligada provisoriamente. |
+| 23/11/2026 | 6 | Os arquivos de áudio continuam acessíveis pela URL direta de upload mesmo com a rádio desligada (o player some, mas o link do arquivo não é bloqueado). Avaliar se vale proteger `/uploads` por igreja. |
 | 23/11/2026 | 0 | Migrações ficam em `src/migrations/` porque `**/scripts/` está no `.gitignore`. |
 | 23/11/2026 | 0 | O app não define `trust proxy`; por isso o aceite grava `ip` e também o cabeçalho `X-Forwarded-For` bruto. Revisar se o proxy da Hostinger exige `app.set("trust proxy", ...)`. |
 
@@ -224,6 +228,7 @@
 | Data | Sprint | Entregue | Pendente / observações |
 |---|---|---|---|
 | 23/11/2026 | — | URS, plano e este documento de status criados. | Nenhuma sprint iniciada. |
+| 23/11/2026 | 6 | Rádio desligada por padrão, ativação só com aceite do termo de responsabilidade (ECAD) registrado, desativação, nova versão do termo tira do ar até novo aceite, revogação desliga. | **Atenção no deploy:** a rádio da igreja-piloto **sai do ar** até um admin aceitar o termo em Painel → Rádio (a ativação provisória da Sprint 0 não basta mais). Rodar `npm run legal:publish` antes (publica o termo) e avisar o admin para aceitar logo em seguida. |
 | 23/11/2026 | 5 | PIX real na conta da igreja via Mercado Pago, webhook seguro (consulta na API, assinatura, idempotência), confirmação automática de inscrições, conciliação e expiração, telas com confirmação automática (site e app). | **Antes do deploy:** cadastrar no painel do Mercado Pago (Webhooks da aplicação) a URL `https://<api>/athos_adm/api/payments/mercadopago/webhook`, evento "Pagamentos", e copiar a chave secreta para `MP_WEBHOOK_SECRET`; sem Redis, criar cron a cada 10–15 min chamando `/internal/cron/mercadopago-reconcile`. Fazer o teste real (5.11) com valor baixo antes de divulgar. |
 | 23/11/2026 | 4 | Conexão OAuth da conta Mercado Pago da igreja (PKCE, state de uso único, tokens criptografados), renovação diária, status e desconexão; card no painel. | **Antes do deploy:** (1) criar a aplicação no Mercado Pago (conta da Athos), cadastrar a URL de redirecionamento `https://<api>/athos_adm/api/payments/mercadopago/callback` e ativar PKCE; (2) definir `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_REDIRECT_URI`, `ADMIN_PANEL_URL`, `TOKEN_ENCRYPTION_KEY` (guardar cópia segura) e `CRON_SECRET`; (3) sem Redis, criar cron diário na Hostinger chamando a rota interna. Sem essas variáveis o card mostra "em preparação" e nada quebra. |
 | 23/11/2026 | 3 | Chave PIX da igreja com BR Code/QR reais, painel "Ofertas (PIX)", telas de oferta no site e no app, inscrição paga com PIX e confirmação manual, fim das cobranças simuladas em produção, webhook protegido, Stripe removido. | **Antes do deploy:** cadastrar a chave PIX da igreja-piloto no painel (Ofertas (PIX)); **não** definir `PAYMENTS_MOCK_ENABLED` em produção; deixar `PAYMENT_WEBHOOK_SECRET` vazio (webhook desligado) até a Sprint 5. Inscrições pagas passam a ficar "registradas" até a secretaria confirmar (mudar para "confirmada" no painel de eventos). Publicar nova versão do app para corrigir as inscrições. |

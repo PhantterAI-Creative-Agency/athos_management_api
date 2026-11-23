@@ -1,3 +1,4 @@
+import { isRadioActive } from "./radioActivation.service";
 import path from "node:path";
 import type { Request } from "express";
 import { isValidObjectId } from "mongoose";
@@ -343,6 +344,9 @@ export async function deletePlaylist(requester: AuthTokenPayload, playlistId: st
 
 /** Playlists ativas no momento, na ordem definida no admin, e quando a programação muda. */
 export async function getRadioPublic(churchId: string, now = new Date()): Promise<PublicRadioDTO> {
+  // Sem rádio ativa (flag + termo aceito), nada vai ao ar: o player do site não aparece.
+  if (!(await isRadioActive(churchId))) return { playlists: [], nextChangeAt: null };
+
   const playlists = await RadioPlaylist.find({ churchId, active: true }).sort({ order: 1, createdAt: 1 });
 
   const live = playlists.filter(
