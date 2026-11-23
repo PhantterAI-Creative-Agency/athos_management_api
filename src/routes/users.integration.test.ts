@@ -404,6 +404,23 @@ describe("Gestão de dados de filhos por pais/mães e cônjuges", () => {
   });
 
   it("pai/mãe pode atualizar dados cadastrais do filho", async () => {
+    // Ficha médica é dado sensível: sem consentimento do responsável, a API recusa (LGPD art. 11).
+    const blocked = await request(app)
+      .patch(`/athos_adm/api/users/${childId}`)
+      .set("Authorization", `Bearer ${parentAccessToken}`)
+      .send({ medicalRecord: { bloodType: "O+" } });
+    expect(blocked.status).toBe(403);
+    expect(blocked.body.error.code).toBe("CONSENT_REQUIRED");
+
+    const { syncDocuments } = await import("../services/legal.service");
+    await syncDocuments([{ type: "sensitive_data_consent", title: "Consentimento", content: "Autorizo\n" }]);
+    const consentDoc = (await request(app).get("/athos_adm/api/legal/sensitive_data_consent/current")).body.data;
+    const consent = await request(app)
+      .post("/athos_adm/api/legal/sensitive_data_consent/accept")
+      .set("Authorization", `Bearer ${parentAccessToken}`)
+      .send({ version: consentDoc.version, contentHash: consentDoc.contentHash, onBehalfOfUserId: childId });
+    expect(consent.status).toBe(201);
+
     const response = await request(app)
       .patch(`/athos_adm/api/users/${childId}`)
       .set("Authorization", `Bearer ${parentAccessToken}`)

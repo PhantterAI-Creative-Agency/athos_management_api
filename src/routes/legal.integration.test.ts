@@ -354,11 +354,11 @@ describe("Placeholders do fornecedor e da igreja", () => {
 });
 
 describe("Publicação a partir dos arquivos (legal:publish)", () => {
-  it("os quatro arquivos de conteúdo são válidos", async () => {
+  it("os arquivos de conteúdo são válidos", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
     const { parseLegalMarkdown } = await import("../services/legal.service");
-    for (const type of ["terms", "privacy", "saas_contract", "dpa"] as const) {
+    for (const type of ["terms", "privacy", "saas_contract", "dpa", "sensitive_data_consent"] as const) {
       const raw = await fs.readFile(path.resolve(__dirname, `../content/legal/${type}.md`), "utf8");
       const parsed = parseLegalMarkdown(type, raw);
       expect(parsed.title.length).toBeGreaterThan(3);

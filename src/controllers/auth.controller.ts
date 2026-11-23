@@ -1,3 +1,4 @@
+import { getRequestEvidence } from "../helpers/requestEvidence.helper";
 import type { NextFunction, Request, Response } from "express";
 import * as authService from "../services/auth.service";
 import { sendSuccess } from "../helpers/response.helper";
@@ -14,7 +15,7 @@ import type {
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = req.validated?.body as RegisterDTO;
-    const userId = await authService.register(body);
+    const userId = await authService.register(body, getRequestEvidence(req));
     await auditLog("REGISTER", "User", userId, { email: body.email }, req);
     sendSuccess(
       res,

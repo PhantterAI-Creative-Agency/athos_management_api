@@ -17,6 +17,8 @@ export const createDataDeletionRequestSchema = z.object({
     .trim()
     .max(2000, "Motivo deve ter no máximo 2000 caracteres")
     .optional(),
+  // Pedir também a exclusão dos dados dos filhos menores vinculados ao cadastro.
+  includeChildren: z.boolean().optional(),
 });
 
 export type CreateDataDeletionRequestDTO = z.infer<typeof createDataDeletionRequestSchema>;
@@ -26,6 +28,7 @@ export interface DataDeletionRequestDTO {
   name: string;
   email: string;
   reason?: string;
+  includeChildren: boolean;
   status: "pending" | "completed";
   createdAt: string;
 }

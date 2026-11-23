@@ -109,6 +109,8 @@ export interface UserDTO {
   };
   vehicles?: { plate: string; model: string }[];
   medicalRecord?: { bloodType?: string; allergies?: string[] };
+  /** Titular tem consentimento vigente para dados sensíveis (ficha médica). */
+  sensitiveDataConsent: boolean;
   createdAt: string;
   updatedAt: string;
 }

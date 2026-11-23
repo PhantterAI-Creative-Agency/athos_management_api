@@ -17,7 +17,7 @@ import { auditLogWithCtx } from "../helpers/auditLogger.helper";
 import type { LegalDocumentType } from "../interfaces/legal.interface";
 
 const CONTENT_DIR = path.resolve(__dirname, "../content/legal");
-const PUBLISHED_FROM_FILES: LegalDocumentType[] = ["terms", "privacy", "saas_contract", "dpa"];
+const PUBLISHED_FROM_FILES: LegalDocumentType[] = ["terms", "privacy", "saas_contract", "dpa", "sensitive_data_consent"];
 
 async function main(): Promise<void> {
   const minor = process.argv.includes("--minor");

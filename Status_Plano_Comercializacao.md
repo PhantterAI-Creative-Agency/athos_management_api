@@ -2,7 +2,7 @@
 
 **Plano:** [`PLANO_Comercializacao.md`](./PLANO_Comercializacao.md)
 **Requisitos:** [`URS_Comercializacao.md`](./URS_Comercializacao.md)
-**Última atualização:** 23/11/2026 (fim da Sprint 1)
+**Última atualização:** 23/11/2026 (fim da Sprint 2)
 
 > **Como atualizar (ao final de cada sprint):**
 > 1. Marque as tarefas concluídas com `[x]` e as parciais com `[~]`.
@@ -21,7 +21,7 @@
 |---|---|---|---|---|---|
 | 0 | Fundação (documentos legais, aceites, feature flags) | Concluída | 23/11/2026 | 23/11/2026 | 7/7 |
 | 1 | Termos, Política, Contrato e DPA | Concluída (exceto revisão jurídica) | 23/11/2026 | 23/11/2026 | 9/10 |
-| 2 | Consentimento dos membros (LGPD) | Não iniciada | — | — | 0/8 |
+| 2 | Consentimento dos membros (LGPD) | Concluída | 23/11/2026 | 23/11/2026 | 8/8 |
 | 3 | PIX provisório e fim do fluxo simulado | Não iniciada | — | — | 0/7 |
 | 4 | Mercado Pago: OAuth | Não iniciada | — | — | 0/9 |
 | 5 | Mercado Pago: PIX e webhook | Não iniciada | — | — | 0/11 |
@@ -75,14 +75,18 @@
 
 ## Sprint 2 — Consentimento dos membros (LGPD)
 
-- [ ] 2.1 Cadastro com aceite e consentimento separados
-- [ ] 2.2 Bloqueio de `medicalRecord` sem consentimento
-- [ ] 2.3 Consentimento em nome de menores
-- [ ] 2.4 Revogação do consentimento
-- [ ] 2.5 Tratamento dos usuários existentes
-- [ ] 2.6 Exclusão de dados cobrindo sensíveis e filhos
-- [ ] 2.7 Exportação dos dados do titular
-- [ ] 2.8 Testes
+- [x] 2.1 Cadastro com aceite e consentimento separados — `POST /auth/register` aceita `legalAcceptances`; site e app têm checkbox obrigatório (Termos + Política) e checkbox opcional separado (dados de saúde)
+- [x] 2.2 Bloqueio de `medicalRecord` sem consentimento — `403 CONSENT_REQUIRED`, inclusive para o admin
+- [x] 2.3 Consentimento em nome de menores — tela do filho (site e app); o consentimento pertence ao titular, então vale o dado por qualquer responsável
+- [x] 2.4 Revogação — `POST /legal/sensitive_data_consent/revoke` apaga a ficha médica do titular; botão "Revogar" no perfil e na tela do filho
+- [x] 2.5 Usuários existentes — ficha médica sem consentimento fica oculta para todos (inclusive admin); o perfil mostra o pedido de consentimento
+- [x] 2.6 Exclusão de dados — opção "incluir dados dos filhos" (site e app), texto deixa claro que inclui dados sensíveis
+- [x] 2.7 Exportação dos dados do titular — `GET /users/me/export`; site: "Baixar meus dados" (JSON); app: "Baixar meus dados" em Configurações (compartilha o JSON)
+- [x] 2.8 Testes — `consent.integration.test.ts` (16) + ajuste em `users.integration.test.ts`
+
+**Validação:** suíte da API: 422 testes passando. Site: build ok e fluxo testado no navegador (cadastro bloqueado sem aceite → cadastro com aceite e consentimento → "Meus dados" sem consentimento salva normalmente → autorizar → ficha liberada → revogar → ficha apagada). App: typecheck e lint sem erros novos; não executado em aparelho.
+
+**Bug evitado:** as telas "Meus dados" (site, app e painel) sempre enviavam a ficha médica ao salvar. Com o bloqueio novo, quem não consentiu não conseguiria salvar nada. Agora a ficha só é enviada com consentimento.
 
 ## Sprint 3 — PIX provisório e fim do fluxo simulado
 
@@ -179,6 +183,10 @@
 | 23/11/2026 | 1 | O contrato e o DPA são aceitos juntos, com os mesmos dados do representante legal, no painel web. O app não tem painel administrativo, então lá só existe o aceite de Termos e Política. |
 | 23/11/2026 | 1 | O bloqueio do painel até o aceite do contrato é feito no site (front-end); a API ainda não recusa ações administrativas de igrejas sem contrato aceito. Avaliar bloqueio no servidor antes de vender para terceiros. |
 | 23/11/2026 | 1 | O cadastro (site e app) ainda não tem checkbox de aceite; o aceite acontece no primeiro acesso, pelo modal. O checkbox separado de dados sensíveis entra na Sprint 2 (2.1). |
+| 23/11/2026 | 2 | O consentimento de dados sensíveis pertence ao **titular**: vale o mais recente entre o do próprio titular e o de qualquer responsável. Assim, pai e mãe compartilham o mesmo consentimento do filho e qualquer um pode revogar. |
+| 23/11/2026 | 2 | O aceite no cadastro é **opcional na API** para não quebrar versões antigas do app nas lojas; quem não enviar aceita pelo modal no primeiro acesso. Site e app novos exigem o checkbox. |
+| 23/11/2026 | 2 | Fichas médicas antigas, sem consentimento, ficam **ocultas, não apagadas**. Pendente: definir com o advogado um prazo para apagá-las se o consentimento não vier. |
+| 23/11/2026 | 2 | A exclusão de dados continua sendo um pedido atendido manualmente (e-mail para a equipe); a automação da exclusão não estava no escopo. |
 | 23/11/2026 | 0 | Migrações ficam em `src/migrations/` porque `**/scripts/` está no `.gitignore`. |
 | 23/11/2026 | 0 | O app não define `trust proxy`; por isso o aceite grava `ip` e também o cabeçalho `X-Forwarded-For` bruto. Revisar se o proxy da Hostinger exige `app.set("trust proxy", ...)`. |
 
@@ -197,5 +205,6 @@
 | Data | Sprint | Entregue | Pendente / observações |
 |---|---|---|---|
 | 23/11/2026 | — | URS, plano e este documento de status criados. | Nenhuma sprint iniciada. |
+| 23/11/2026 | 2 | Consentimento específico para ficha médica (próprio e de menores), bloqueio e ocultação sem consentimento, revogação que apaga os dados, aceite no cadastro, exportação de dados, exclusão incluindo filhos. Novo texto `sensitive_data_consent.md`. | **Antes do deploy:** rodar `npm run legal:publish` (agora também publica o termo de dados sensíveis). **Atenção:** após o deploy, as fichas médicas já cadastradas ficam ocultas até cada titular (ou responsável) consentir — avise a igreja-piloto. Os dados continuam no banco; decidir se serão apagados após um prazo sem consentimento (ver decisões). |
 | 23/11/2026 | 1 | Minutas de Termos, Política, Contrato e DPA; publicação a partir de arquivos (`legal:publish`, idempotente, `--minor`); placeholders do fornecedor por variável de ambiente; exportação de evidências; páginas públicas, modal de aceite (site e app), bloqueio do painel até o aceite do contrato, página "Documentos legais". | **Antes do deploy:** definir `LEGAL_PROVIDER_NAME`, `LEGAL_PROVIDER_DOCUMENT`, `LEGAL_PROVIDER_EMAIL` e `LEGAL_FORUM_CITY` (senão os textos mostram `[RAZÃO SOCIAL DO FORNECEDOR]` etc.), cadastrar o e-mail de contato da igreja no painel, e rodar `npm run legal:publish` com `APP_ENV=production`. A partir daí **todos os usuários** verão o modal de aceite no próximo acesso e o **admin da igreja-piloto** ficará bloqueado no painel até aceitar o contrato. Recomendo publicar só depois da revisão do advogado (1.10), ou publicar já e publicar a v2 revisada depois (exigirá novo aceite). |
 | 23/11/2026 | 0 | Documentos legais versionados e imutáveis, registro de aceites/revogações com evidência (IP, X-Forwarded-For, user-agent, hash do texto exibido), pendências por usuário/igreja, feature flags por igreja, migração da igreja-piloto, 31 testes novos (suíte: 395 passando). | **Antes do deploy:** rodar `npm run migrate:pilot-radio -- <slug-da-piloto>` com `APP_ENV=production` (usa `tsx`, que é dependência de desenvolvimento). Nenhum documento está publicado ainda: `/legal/pending` retorna vazio até a Sprint 1. Site e app ainda não consomem as rotas novas. |

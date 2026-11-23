@@ -150,6 +150,15 @@ function subjectFilter(subject: AcceptanceSubject): Record<string, unknown> {
   if (rule.scope === "church") {
     return { churchId: new Types.ObjectId(subject.churchId), documentType: subject.type };
   }
+  if (rule.allowOnBehalfOf) {
+    // O consentimento pertence ao titular dos dados, não a quem clicou: vale o do próprio
+    // titular ou o de qualquer responsável (pai, mãe), e o mais recente prevalece.
+    const holder = new Types.ObjectId(subject.onBehalfOfUserId ?? subject.userId);
+    return {
+      documentType: subject.type,
+      $or: [{ userId: holder, onBehalfOfUserId: null }, { onBehalfOfUserId: holder }],
+    };
+  }
   return {
     userId: new Types.ObjectId(subject.userId),
     documentType: subject.type,
@@ -363,7 +372,7 @@ export async function revokeDocument(
     action: "revoke",
     userId: new Types.ObjectId(user.sub),
     churchId: latest.churchId,
-    onBehalfOfUserId: latest.onBehalfOfUserId,
+    onBehalfOfUserId: data.onBehalfOfUserId ? new Types.ObjectId(data.onBehalfOfUserId) : undefined,
     documentId: latest.documentId,
     documentType: type,
     version: latest.version,
@@ -374,7 +383,81 @@ export async function revokeDocument(
     userAgent: evidence.userAgent,
   });
 
+  // Revogar o consentimento de dados sensíveis apaga os dados tratados com base nele (art. 18, IX).
+  if (type === "sensitive_data_consent") {
+    await User.updateOne({ _id: data.onBehalfOfUserId ?? user.sub }, { $unset: { medicalRecord: 1 } });
+  }
+
   return toAcceptanceDTO(record);
+}
+
+/** Titulares (dentre `userIds`) com consentimento de dados sensíveis vigente. Uma consulta só. */
+export async function getSensitiveConsentHolders(userIds: string[]): Promise<Set<string>> {
+  const holders = new Set<string>();
+  const ids = userIds.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+  if (ids.length === 0) return holders;
+
+  const baselineVersion = await getBaselineVersion("sensitive_data_consent");
+  if (baselineVersion === null) return holders;
+
+  const records = await LegalAcceptance.find({
+    documentType: "sensitive_data_consent",
+    $or: [{ userId: { $in: ids }, onBehalfOfUserId: null }, { onBehalfOfUserId: { $in: ids } }],
+  })
+    .sort({ createdAt: -1, _id: -1 })
+    .select("userId onBehalfOfUserId action version")
+    .lean();
+
+  const seen = new Set<string>();
+  for (const record of records) {
+    const holder = String(record.onBehalfOfUserId ?? record.userId);
+    if (seen.has(holder)) continue;
+    seen.add(holder);
+    if (evaluate(record, baselineVersion) === null) holders.add(holder);
+  }
+  return holders;
+}
+
+export async function hasSensitiveConsent(userId: string): Promise<boolean> {
+  return (await getSensitiveConsentHolders([userId])).has(userId);
+}
+
+export interface InitialAcceptance {
+  type: LegalDocumentType;
+  version: number;
+  contentHash: string;
+}
+
+/** Garante que os aceites enviados no cadastro são da versão vigente, antes de criar o usuário. */
+export async function assertAcceptancesAreCurrent(items: InitialAcceptance[]): Promise<void> {
+  for (const item of items) {
+    const current = await findCurrentDocument(item.type);
+    if (!current) throw new AppError(404, "LEGAL_DOCUMENT_NOT_FOUND", "Documento ainda não publicado");
+    if (current.version !== item.version || current.contentHash !== item.contentHash) {
+      throw new AppError(
+        409,
+        "LEGAL_VERSION_MISMATCH",
+        "Os documentos foram atualizados. Leia a versão mais recente antes de concluir o cadastro",
+      );
+    }
+  }
+}
+
+/**
+ * Registra os aceites feitos no formulário de cadastro, antes do primeiro login. Só aceita
+ * documentos de escopo "user" sem representante legal (Termos, Política, dados sensíveis).
+ */
+export async function recordInitialAcceptances(
+  newUser: { id: string; churchId: string },
+  items: InitialAcceptance[],
+  evidence: RequestEvidence,
+): Promise<void> {
+  const asUser: AuthTokenPayload = { sub: newUser.id, churchId: newUser.churchId, roles: ["visitor"] };
+  for (const item of items) {
+    const rule = LEGAL_DOCUMENT_RULES[item.type];
+    if (rule.scope !== "user" || rule.requiresSigner) continue;
+    await acceptDocument(item.type, { version: item.version, contentHash: item.contentHash }, asUser, evidence);
+  }
 }
 
 export interface LegalEvidenceRecordDTO {

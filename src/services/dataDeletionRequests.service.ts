@@ -10,6 +10,7 @@ type DataDeletionRequestDocumentLike = {
   name: string;
   email: string;
   reason?: string | null;
+  includeChildren?: boolean | null;
   status: "pending" | "completed";
   createdAt: Date;
 };
@@ -20,6 +21,7 @@ function toDataDeletionRequestDTO(doc: DataDeletionRequestDocumentLike): DataDel
     name: doc.name,
     email: doc.email,
     reason: doc.reason ?? undefined,
+    includeChildren: doc.includeChildren ?? false,
     status: doc.status,
     createdAt: doc.createdAt.toISOString(),
   };

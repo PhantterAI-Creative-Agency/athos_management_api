@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import * as legalService from "../services/legal.service";
 import { sendSuccess } from "../helpers/response.helper";
 import { auditLog } from "../helpers/auditLogger.helper";
+import { getRequestEvidence as getEvidence } from "../helpers/requestEvidence.helper";
 import type {
   AcceptLegalDocumentDTO,
   ExportEvidenceQueryDTO,
@@ -9,21 +10,11 @@ import type {
   LegalDocumentType,
   ListLegalDocumentsQueryDTO,
   PublishLegalDocumentDTO,
-  RequestEvidence,
   RevokeLegalDocumentDTO,
 } from "../interfaces/legal.interface";
 
 function getType(req: Request): LegalDocumentType {
   return (req.validated?.params as { type: LegalDocumentType }).type;
-}
-
-function getEvidence(req: Request): RequestEvidence {
-  const forwarded = req.headers["x-forwarded-for"];
-  return {
-    ip: req.ip ?? req.socket.remoteAddress ?? undefined,
-    forwardedFor: Array.isArray(forwarded) ? forwarded.join(", ") : forwarded,
-    userAgent: req.headers["user-agent"],
-  };
 }
 
 export async function getCurrent(req: Request, res: Response, next: NextFunction): Promise<void> {

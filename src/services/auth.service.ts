@@ -1,3 +1,5 @@
+import { assertAcceptancesAreCurrent, recordInitialAcceptances } from "./legal.service";
+import type { RequestEvidence } from "../interfaces/legal.interface";
 import type { Types } from "mongoose";
 import { randomInt } from "node:crypto";
 import { User } from "../models/User.model";
@@ -66,7 +68,7 @@ async function listRegistrationRecipients(churchId: Types.ObjectId): Promise<str
 }
 
 // Cria o usuário como inativo; um administrador precisa ativá-lo antes do primeiro login.
-export async function register(data: RegisterDTO): Promise<string> {
+export async function register(data: RegisterDTO, evidence: RequestEvidence = {}): Promise<string> {
   const church = await Church.findOne({ slug: data.churchSlug });
 
   if (!church) {
@@ -84,6 +86,8 @@ export async function register(data: RegisterDTO): Promise<string> {
   }
 
   const address = data.address && Object.values(data.address).some(Boolean) ? data.address : undefined;
+  const acceptances = data.legalAcceptances ?? [];
+  await assertAcceptancesAreCurrent(acceptances);
 
   let user;
   try {
@@ -106,6 +110,8 @@ export async function register(data: RegisterDTO): Promise<string> {
     }
     throw error;
   }
+
+  await recordInitialAcceptances({ id: String(user._id), churchId: String(church._id) }, acceptances, evidence);
 
   try {
     await enqueueRegistrationEmail({

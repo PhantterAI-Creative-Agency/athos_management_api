@@ -8,6 +8,7 @@ import type { AuthTokenPayload } from "../helpers/jwt.helper";
 import { calculateAge, isFamilyManager, tryLinkSpouse } from "../helpers/family.helper";
 import { AppError } from "../middlewares/errorHandler";
 import { notifyUserAccount } from "../jobs/userAccountEmail.job";
+import { getSensitiveConsentHolders, hasSensitiveConsent } from "./legal.service";
 import type { CreateChildDTO, CreateUserDTO, Gender, UpdateUserDTO, UserDTO } from "../interfaces/user.interface";
 
 type UserDocumentLike = {
@@ -35,7 +36,15 @@ type UserDocumentLike = {
   updatedAt: Date;
 };
 
-function toUserDTO(user: UserDocumentLike, ministries?: { id: string; name: string }[]): UserDTO {
+/**
+ * `sensitiveConsent`: o titular tem consentimento vigente para dados sensíveis. Sem ele, a ficha
+ * médica não é exibida a ninguém (nem ao admin), mesmo que exista no banco (URS-LGPD-05).
+ */
+function toUserDTO(
+  user: UserDocumentLike,
+  ministries?: { id: string; name: string }[],
+  sensitiveConsent = false,
+): UserDTO {
   return {
     id: String(user._id),
     churchId: String(user.churchId),
@@ -67,9 +76,11 @@ function toUserDTO(user: UserDocumentLike, ministries?: { id: string; name: stri
         }
       : undefined,
     vehicles: user.vehicles ?? undefined,
-    medicalRecord: user.medicalRecord
-      ? { bloodType: user.medicalRecord.bloodType ?? undefined, allergies: user.medicalRecord.allergies }
-      : undefined,
+    medicalRecord:
+      sensitiveConsent && user.medicalRecord
+        ? { bloodType: user.medicalRecord.bloodType ?? undefined, allergies: user.medicalRecord.allergies }
+        : undefined,
+    sensitiveDataConsent: sensitiveConsent,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
@@ -213,7 +224,11 @@ export async function listUsers(requester: AuthTokenPayload, churchId?: string):
     users.map((u) => u._id),
   );
 
-  return users.map((user) => toUserDTO(user, ministriesByUser.get(String(user._id)) ?? []));
+  const consentHolders = await getSensitiveConsentHolders(users.map((u) => String(u._id)));
+
+  return users.map((user) =>
+    toUserDTO(user, ministriesByUser.get(String(user._id)) ?? [], consentHolders.has(String(user._id))),
+  );
 }
 
 export async function getUser(requester: AuthTokenPayload, userId: string): Promise<UserDTO> {
@@ -233,7 +248,11 @@ export async function getUser(requester: AuthTokenPayload, userId: string): Prom
 
   const ministriesByUser = await getMinistriesByUserIds(user.churchId, [user._id]);
 
-  return toUserDTO(user, ministriesByUser.get(String(user._id)) ?? []);
+  return toUserDTO(
+    user,
+    ministriesByUser.get(String(user._id)) ?? [],
+    await hasSensitiveConsent(String(user._id)),
+  );
 }
 
 export async function deleteInactiveUsers(requester: AuthTokenPayload): Promise<{ deletedCount: number }> {
@@ -291,7 +310,16 @@ export async function updateUser(
   if (data.vehicles !== undefined) {
     user.vehicles = data.vehicles as unknown as typeof user.vehicles;
   }
+  const sensitiveConsent = await hasSensitiveConsent(String(user._id));
+
   if (data.medicalRecord !== undefined) {
+    if (!sensitiveConsent) {
+      throw new AppError(
+        403,
+        "CONSENT_REQUIRED",
+        "A ficha médica só pode ser preenchida após o consentimento do titular (ou do responsável, para menores)",
+      );
+    }
     user.medicalRecord = data.medicalRecord as unknown as typeof user.medicalRecord;
   }
 
@@ -340,5 +368,5 @@ export async function updateUser(
     action: "updated",
   });
 
-  return toUserDTO(user);
+  return toUserDTO(user, undefined, sensitiveConsent);
 }

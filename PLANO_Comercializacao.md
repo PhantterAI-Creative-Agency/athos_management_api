@@ -84,7 +84,7 @@ As sprints 1 e 2 dependem da 0. A 5 depende da 4. A 6 depende da 0. A 8 depende 
 | 2.4 | Revogação: `POST /legal/sensitive_data_consent/revoke` (já existe desde a Sprint 0) passa a apagar `medicalRecord` (e dos filhos, se aplicável). | API |
 | 2.5 | Usuários existentes: ocultar dados sensíveis até o consentimento e pedir o consentimento no próximo login. | API, WEB, APP |
 | 2.6 | Ampliar a solicitação de exclusão de dados para cobrir dados sensíveis e de filhos. | API |
-| 2.7 | Exportação dos dados do titular (`GET /users/me/export`, JSON). | API |
+| 2.7 | Exportação dos dados do titular (`GET /users/me/export`, JSON) e botão "Baixar meus dados". | API, WEB, APP |
 | 2.8 | Testes: gravação bloqueada sem consentimento, revogação, consentimento por responsável. | API |
 
 **Pronto quando:** nenhum dado de saúde ou de menor é gravado ou exibido sem consentimento registrado.

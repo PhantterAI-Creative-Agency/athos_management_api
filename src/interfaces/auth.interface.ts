@@ -94,6 +94,22 @@ export const registerSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => undefined)),
   address: addressSchema.optional(),
+  // Aceites feitos no próprio formulário (Termos, Política e, opcional e separado, o
+  // consentimento de dados sensíveis). Opcional para não quebrar versões antigas do app: quem
+  // não enviar aceita no primeiro acesso.
+  legalAcceptances: z
+    .array(
+      z.object({
+        type: z.enum(["terms", "privacy", "sensitive_data_consent"]),
+        version: z.number().int().positive(),
+        contentHash: z.string().length(64),
+      }),
+    )
+    .max(3)
+    .refine((items) => new Set(items.map((i) => i.type)).size === items.length, {
+      message: "Documento repetido nos aceites",
+    })
+    .optional(),
 });
 
 export type RegisterDTO = z.infer<typeof registerSchema>;

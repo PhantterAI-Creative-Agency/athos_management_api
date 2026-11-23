@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import * as usersService from "../services/users.service";
+import { exportPersonalData } from "../services/dataExport.service";
 import { sendSuccess } from "../helpers/response.helper";
 import { auditLog } from "../helpers/auditLogger.helper";
 import type { CreateChildDTO, CreateUserDTO, ListUsersQueryDTO, UpdateUserDTO } from "../interfaces/user.interface";
@@ -61,6 +62,17 @@ export async function update(req: Request, res: Response, next: NextFunction): P
     const user = await usersService.updateUser(req.user!, String(req.params.id), body);
     await auditLog("UPDATE", "User", user.id, { roles: body.roles, name: body.name }, req);
     sendSuccess(res, user);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function exportMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await exportPersonalData(req.user!.sub);
+    await auditLog("OTHER", "PersonalDataExport", req.user!.sub, undefined, req);
+    res.setHeader("Content-Disposition", `attachment; filename="meus-dados-${data.generatedAt.slice(0, 10)}.json"`);
+    sendSuccess(res, data);
   } catch (error) {
     next(error);
   }

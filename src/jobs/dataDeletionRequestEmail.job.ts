@@ -36,7 +36,17 @@ async function processDataDeletionRequestEmail(data: CreateDataDeletionRequestDT
     to: env.GMAIL_APP_MAIL,
     replyTo: data.email,
     subject: `[Exclusão de Dados] Solicitação de ${data.name}`,
-    text: `Nome: ${data.name}\nEmail: ${data.email}\n\nMotivo:\n${data.reason ?? "-"}`,
+    text: [
+      `Nome: ${data.name}`,
+      `Email: ${data.email}`,
+      `Incluir dados dos filhos menores: ${data.includeChildren ? "SIM" : "não"}`,
+      "",
+      "Excluir todos os dados pessoais, inclusive os sensíveis (ficha médica) e o histórico de consentimentos.",
+      "Registros de aceite e de ofertas podem ser mantidos apenas pelo prazo legal (ver Política de Privacidade).",
+      "",
+      "Motivo:",
+      data.reason ?? "-",
+    ].join("\n"),
   });
 }
 

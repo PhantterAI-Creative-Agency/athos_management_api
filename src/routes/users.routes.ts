@@ -32,6 +32,9 @@ router.get(
   usersController.list,
 );
 
+// Cópia dos dados pessoais do próprio usuário (acesso/portabilidade — LGPD art. 18).
+router.get("/me/export", authenticate, usersController.exportMe);
+
 router.delete("/inactive", authenticate, withRole(["devAdmin"]), usersController.removeInactive);
 
 router.get("/:id", authenticate, withSelfFamilyOrRole(["admin", "devAdmin"]), usersController.getById);
