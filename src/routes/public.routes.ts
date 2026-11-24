@@ -8,6 +8,7 @@ import { trackPublicAccess } from "../middlewares/trackAccess";
 
 const router = Router();
 
+router.get("/church-by-host", publicController.getChurchByHost);
 router.get("/churches/:slug", trackPublicAccess, publicController.getChurch);
 router.get("/churches/:slug/events", trackPublicAccess, publicController.getEvents);
 router.get("/churches/:slug/devotionals", trackPublicAccess, publicController.getDevotionals);

@@ -17,6 +17,12 @@ const churchSchema = new Schema(
     phone: { type: String },
     about: { type: String },
     slug: { type: String, required: true, unique: true },
+    // Domínios/subdomínios do site da igreja (sem "www."), para resolver a igreja pelo endereço.
+    domains: { type: [String], default: [] },
+    // Limites por igreja (Sprint 7). Sem valor, vale o padrão da plataforma.
+    limits: {
+      storageMb: { type: Number },
+    },
     settings: {
       primaryColor: { type: String, required: true, default: "#000000" },
       growthGroupName: { type: String, required: true, default: "Grupos de Crescimento" },
@@ -26,6 +32,15 @@ const churchSchema = new Schema(
       disabledAdPlacements: { type: [String], required: true, default: [] },
       // Recursos ligados/desligados por igreja (ver helpers/features.helper.ts). "ads" continua
       // em `adsEnabled` acima, por compatibilidade com os clientes atuais.
+      // Identidade visual do site (Sprint 7). Cores em hex; fonte de uma lista fechada.
+      theme: {
+        accentColor: { type: String },
+        secondaryColor: { type: String },
+        fontFamily: { type: String },
+        faviconUrl: { type: String },
+        heroImageUrl: { type: String },
+        homeSections: { type: [{ id: String, visible: Boolean, _id: false }], default: undefined },
+      },
       features: {
         radio: { type: Boolean, default: false },
         aiAssistant: { type: Boolean, default: true },
@@ -97,6 +112,8 @@ const churchSchema = new Schema(
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );
+
+churchSchema.index({ domains: 1 }, { unique: true, partialFilterExpression: { "domains.0": { $exists: true } } });
 
 export type ChurchDocument = InferSchemaType<typeof churchSchema>;
 

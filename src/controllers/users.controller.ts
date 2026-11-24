@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import * as usersService from "../services/users.service";
 import { exportPersonalData } from "../services/dataExport.service";
+import { importMembers } from "../services/memberImport.service";
 import { sendSuccess } from "../helpers/response.helper";
 import { auditLog } from "../helpers/auditLogger.helper";
 import type { CreateChildDTO, CreateUserDTO, ListUsersQueryDTO, UpdateUserDTO } from "../interfaces/user.interface";
@@ -73,6 +74,17 @@ export async function exportMe(req: Request, res: Response, next: NextFunction):
     await auditLog("OTHER", "PersonalDataExport", req.user!.sub, undefined, req);
     res.setHeader("Content-Disposition", `attachment; filename="meus-dados-${data.generatedAt.slice(0, 10)}.json"`);
     sendSuccess(res, data);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function importCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const body = req.validated?.body as { csv: string; dryRun?: boolean };
+    const result = await importMembers(req.user!.churchId, body.csv, body.dryRun ?? false);
+    if (!result.dryRun) await auditLog("CREATE", "UserImport", undefined, { created: result.created, skipped: result.skipped.length }, req);
+    sendSuccess(res, result);
   } catch (error) {
     next(error);
   }

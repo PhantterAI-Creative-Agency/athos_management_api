@@ -1,4 +1,5 @@
 import type { ChurchFeature } from "../helpers/features.helper";
+import { HOME_SECTIONS, THEME_FONTS, type ThemeDTO } from "../helpers/theme.helper";
 import { z } from "zod";
 
 export const searchChurchesQuerySchema = z.object({
@@ -146,7 +147,9 @@ export interface ChurchDTO {
     adsEnabled: boolean;
     disabledAdPlacements: string[];
     features: Record<ChurchFeature, boolean>;
+    theme: ThemeDTO;
   };
+  domains: string[];
   homeContent?: {
     intro?: string;
     mission?: string;
@@ -183,3 +186,20 @@ export const updateChurchFeaturesSchema = z
   });
 
 export type UpdateChurchFeaturesDTO = z.infer<typeof updateChurchFeaturesSchema>;
+
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use uma cor no formato #RRGGBB");
+
+export const updateChurchThemeSchema = z.object({
+  accentColor: hexColor.nullable().optional(),
+  secondaryColor: hexColor.nullable().optional(),
+  fontFamily: z.enum(THEME_FONTS).optional(),
+  faviconUrl: z.string().url("URL inválida").max(500).nullable().optional(),
+  heroImageUrl: z.string().url("URL inválida").max(1000).nullable().optional(),
+  homeSections: z
+    .array(z.object({ id: z.enum(HOME_SECTIONS), visible: z.boolean() }))
+    .max(HOME_SECTIONS.length)
+    .refine((items) => new Set(items.map((i) => i.id)).size === items.length, { message: "Seção repetida" })
+    .optional(),
+});
+
+export type UpdateChurchThemeDTO = z.infer<typeof updateChurchThemeSchema>;

@@ -88,6 +88,7 @@ O arquivo carregado depende de `APP_ENV` (`local` → `.env.local`, `qa` → `.e
 | `TOKEN_ENCRYPTION_KEY` | não (idem) | — | 32 bytes em base64/hex; criptografa os tokens das igrejas (AES-256-GCM). **Não perca**: sem ela os tokens salvos ficam ilegíveis |
 | `MP_WEBHOOK_SECRET` | não (recomendado) | — | Chave secreta de webhooks da aplicação no Mercado Pago; valida o `x-signature` |
 | `MP_NOTIFICATION_URL` | não | derivada de `MP_REDIRECT_URI` | URL pública (https) do webhook de pagamentos |
+| `CHURCH_STORAGE_LIMIT_MB` | não | `2048` | Limite padrão de armazenamento (áudios) por igreja; ajustável por igreja em `/plataforma` |
 | `PAYMENT_WEBHOOK_SECRET` | não | — | Segredo exigido no cabeçalho `X-Webhook-Secret` do webhook de pagamentos; sem ele o webhook fica desligado |
 | `PAYMENTS_MOCK_ENABLED` | não | `false` (`true` nos testes) | Liga cobranças simuladas; **nunca** em produção |
 | `LEGAL_FORUM_CITY` | não (definir em produção) | `[CIDADE/UF DO FORO]` | Foro do Contrato |
@@ -168,8 +169,9 @@ Todos montados em `/athos_adm/api/...` (ver `src/routes/index.ts`):
 | Rota | Domínio |
 |---|---|
 | `/auth` | Login, refresh, OAuth, logout |
-| `/users` | Criação de usuário, perfil, família |
-| `/churches` | Registro de igreja, busca, dados da igreja, recursos ligados/desligados (`/me/features`), chave PIX (`/me/pix`) |
+| `/users` | Criação de usuário, perfil, família, importação de membros por CSV (`POST /users/import`), exportação dos dados (`GET /users/me/export`) |
+| `/churches` | Busca e dados da igreja, recursos ligados/desligados (`/me/features`), chave PIX (`/me/pix`), aparência (`PUT /me/theme`). Criar igreja (`POST /churches`) agora exige `devAdmin` |
+| `/platform` | Painel da plataforma (`devAdmin`): criar igreja com admin e convite, domínios, limite de armazenamento e uso por igreja |
 | `/legal` | Documentos legais versionados (Termos, Política, Contrato, DPA, termos de rádio e de dados sensíveis), aceites e revogações com evidência, pendências do usuário |
 | `/events` + inscrições | Eventos e inscrições (eventos pagos: PIX da igreja com confirmação manual até a integração do Mercado Pago) |
 | `/ministries` | Ministérios e voluntários (lista já vem ordenada com ministérios do usuário primeiro + flag `isVolunteer`) |
@@ -189,7 +191,7 @@ Todos montados em `/athos_adm/api/...` (ver `src/routes/index.ts`):
 | `/ai-chat` | Assistente com IA (OpenRouter) |
 | `/pastoral-care` | Pedidos de cuidado pastoral |
 | `/contact` | Formulário de contato (público, rate limited) |
-| `/public` | Endpoints públicos por slug de igreja (eventos, devocionais, mídia, ministérios) |
+| `/public` | Endpoints públicos por slug de igreja (eventos, devocionais, mídia, ministérios) e `GET /public/church-by-host?host=` (descobre a igreja pelo domínio) |
 | `/radio` | Rádio da igreja. `GET /radio/status`, `POST /radio/activate` (aceita o termo de responsabilidade e liga) e `POST /radio/deactivate`; as demais rotas exigem rádio ligada **e** termo vigente aceito |
 | `/internal` | Endpoints de cron com `Authorization: Bearer <CRON_SECRET>`: `POST /internal/cron/mercadopago-refresh-tokens` (diário) e `POST /internal/cron/mercadopago-reconcile` (a cada 10–15 min, quando não há Redis) |
 

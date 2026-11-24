@@ -8,13 +8,15 @@ import {
   registerChurchSchema,
   searchChurchesQuerySchema,
   updateChurchFeaturesSchema,
+  updateChurchThemeSchema,
   updateChurchSchema,
 } from "../interfaces/church.interface";
 import { setPixConfigSchema } from "../interfaces/pix.interface";
 
 const router = Router();
 
-router.post("/", validate(registerChurchSchema), churchesController.register);
+// Criação de igreja só pela equipe da plataforma (antes era pública e qualquer pessoa podia criar).
+router.post("/", authenticate, withRole(["devAdmin"]), validate(registerChurchSchema), churchesController.register);
 
 router.get("/search", validate(searchChurchesQuerySchema, "query"), churchesController.search);
 
@@ -36,6 +38,9 @@ router.patch(
   validate(updateChurchFeaturesSchema),
   churchesController.updateMyFeatures,
 );
+
+// Identidade visual do site (cores, fonte, favicon, ordem das seções da home).
+router.put("/me/theme", authenticate, withRole(["admin"]), validate(updateChurchThemeSchema), churchesController.updateMyTheme);
 
 // Chave PIX da igreja para ofertas (o dinheiro cai direto na conta da igreja).
 router.get("/me/pix", authenticate, withRole(["admin"]), churchesController.getMyPix);

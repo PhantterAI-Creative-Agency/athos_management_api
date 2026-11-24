@@ -9,6 +9,7 @@ import type {
   SearchChurchesQueryDTO,
   UpdateChurchDTO,
   UpdateChurchFeaturesDTO,
+  UpdateChurchThemeDTO,
 } from "../interfaces/church.interface";
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -115,6 +116,17 @@ export async function removeMyPix(req: Request, res: Response, next: NextFunctio
     await pixService.removePixConfig(req.user!.churchId);
     await auditLog("DELETE", "ChurchPix", req.user!.churchId, undefined, req);
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateMyTheme(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const body = req.validated?.body as UpdateChurchThemeDTO;
+    const church = await churchesService.updateChurchTheme(req.user!.churchId, body);
+    await auditLog("UPDATE", "ChurchTheme", church.id, { fields: Object.keys(body) }, req);
+    sendSuccess(res, church);
   } catch (error) {
     next(error);
   }

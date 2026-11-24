@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { Router } from "express";
 import * as usersController from "../controllers/users.controller";
 import * as notificationsController from "../controllers/notifications.controller";
@@ -30,6 +31,15 @@ router.get(
   withRole(["admin", "devAdmin"]),
   validate(listUsersQuerySchema, "query"),
   usersController.list,
+);
+
+// Importação de membros por planilha CSV (admin da igreja).
+router.post(
+  "/import",
+  authenticate,
+  withRole(["admin"]),
+  validate(z.object({ csv: z.string().min(1, "Envie o conteúdo da planilha").max(5_000_000), dryRun: z.boolean().optional() })),
+  usersController.importCsv,
 );
 
 // Cópia dos dados pessoais do próprio usuário (acesso/portabilidade — LGPD art. 18).

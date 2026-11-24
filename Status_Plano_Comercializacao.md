@@ -2,7 +2,7 @@
 
 **Plano:** [`PLANO_Comercializacao.md`](./PLANO_Comercializacao.md)
 **Requisitos:** [`URS_Comercializacao.md`](./URS_Comercializacao.md)
-**Última atualização:** 23/11/2026 (fim da Sprint 6)
+**Última atualização:** 24/11/2026 (fim da Sprint 7)
 
 > **Como atualizar (ao final de cada sprint):**
 > 1. Marque as tarefas concluídas com `[x]` e as parciais com `[~]`.
@@ -26,18 +26,18 @@
 | 4 | Mercado Pago: OAuth | Concluída (falta configurar a aplicação no Mercado Pago) | 23/11/2026 | 23/11/2026 | 8/9 |
 | 5 | Mercado Pago: PIX e webhook | Concluída (falta o teste real) | 23/11/2026 | 23/11/2026 | 10/11 |
 | 6 | Rádio opcional com aceite | Concluída (falta o aceite da igreja-piloto) | 23/11/2026 | 23/11/2026 | 5/6 |
-| 7 | Multi-igreja: temas e onboarding | Não iniciada | — | — | 0/10 |
+| 7 | Multi-igreja: temas e onboarding | Concluída | 23/11/2026 | 24/11/2026 | 10/10 |
 | 8 | Planos comerciais e cobrança | Não iniciada | — | — | 0/7 |
 | 9 | Tesouraria | Aguardando requisitos | — | — | — |
 
-**Critérios para o primeiro cliente pagante (URS §11):** 3/6 atendidos no código (valem após o deploy).
+**Critérios para o primeiro cliente pagante (URS §11):** 4/6 atendidos no código (valem após o deploy).
 
 - [x] Nenhum fluxo simulado de pagamento acessível em produção (Sprint 3)
 - [~] PIX real recebido na conta da igreja e confirmado por webhook validado — código pronto (Sprint 5); falta o teste real (5.11)
 - [ ] Termos, Política, Contrato e DPA publicados, versionados e revisados por advogado
 - [x] Aceite do representante legal e consentimentos dos membros registrados (Sprints 1 e 2)
 - [x] Rádio só funciona após aceite registrado (Sprint 6)
-- [ ] Igreja nova entra no ar pelo painel, sem deploy manual
+- [x] Igreja nova entra no ar pelo painel, sem deploy manual (Sprint 7; falta só apontar o domínio)
 
 ---
 
@@ -147,16 +147,20 @@
 
 ## Sprint 7 — Multi-igreja: temas e onboarding
 
-- [ ] 7.1 `Church.settings.theme` ampliado
-- [ ] 7.2 Domínios e resolução por host
-- [ ] 7.3 Site com tema e home configuráveis
-- [ ] 7.4 Editor de tema no painel
-- [ ] 7.5 `super_admin` e criação de igreja
-- [ ] 7.6 Importação de membros por CSV
-- [ ] 7.7 Guia de domínios na Hostinger
-- [ ] 7.8 Métricas e limite de armazenamento por igreja
-- [ ] 7.9 Decisão e implementação do modelo do app (P3)
-- [ ] 7.10 Ensaio de implantação cronometrado
+- [x] 7.1 `Church.settings.theme`: cor principal e secundária, fonte (lista fechada), favicon, foto do topo e ordem/visibilidade das seções da home; `PUT /churches/me/theme`
+- [x] 7.2 `Church.domains` (únicos, normalizados sem `www.`/porta) e `GET /public/church-by-host`
+- [x] 7.3 Site: `ChurchProvider` descobre a igreja pelo domínio (ou `NEXT_PUBLIC_CHURCH_SLUG` fixo); tema aplicado por variáveis CSS (claro e escuro), fonte do Google Fonts, favicon e título; home montada pela ordem do tema; textos e contatos fixos da piloto removidos (nome, logo, rodapé, login, cadastro, contato)
+- [x] 7.4 Painel → **Aparência**, com pré-visualização das cores e reordenação das seções
+- [x] 7.5 Painel da plataforma em `/plataforma` (papel `devAdmin` faz o papel de super admin): cria igreja + domínios + primeiro admin e envia convite por e-mail; `POST /churches` deixou de ser público
+- [x] 7.6 Painel → Usuários → **Importar planilha** (CSV com `,` ou `;`, modelo para baixar, conferência antes de importar, relatório por linha)
+- [x] 7.7 Guia de implantação e domínios na Hostinger: `GUIA_Implantacao_Igreja.md`
+- [x] 7.8 Uso por igreja (membros, armazenamento, IA e ofertas em 30 dias, Mercado Pago) e limite de armazenamento por igreja (padrão 2 GB, 413 ao passar)
+- [x] 7.9 Decisão P3: **app único** com escolha da igreja (o app já funcionava assim; nada a publicar por igreja)
+- [x] 7.10 Ensaio cronometrado no navegador: criar igreja → aceite de termos e contrato → aparência → importar 3 membros → chave PIX levou **~5 s de automação**; o tempo real fica por conta de coletar os dados e do DNS. O mesmo build mostrou duas igrejas diferentes em dois endereços
+
+**Validação:** suíte da API: 504 testes (14 novos). Site: typecheck, lint (sem problemas novos) e build ok; ensaio ponta a ponta no navegador.
+
+**Bugs encontrados pelo ensaio:** (1) o topo da home de qualquer igreja mostrava a **foto e a logo da Princípios de Vida** (imagens fixas no código) — agora a foto vem da Aparência (sem foto: degradê na cor da igreja) e, sem logo, aparecem as iniciais; a piloto continua com as imagens de sempre; (2) a página da plataforma não abria num domínio sem igreja cadastrada.
 
 ## Sprint 8 — Planos comerciais e cobrança
 
@@ -210,6 +214,10 @@
 | 23/11/2026 | 5 | O pagador precisa ter e-mail no cadastro (exigência do Mercado Pago); sem e-mail, a API pede para cadastrar. |
 | 23/11/2026 | 6 | "No ar" = flag ligada **e** termo aceito na versão vigente. Isso cumpre URS-RAD-03 mesmo para a igreja-piloto, que tinha a flag ligada provisoriamente. |
 | 23/11/2026 | 6 | Os arquivos de áudio continuam acessíveis pela URL direta de upload mesmo com a rádio desligada (o player some, mas o link do arquivo não é bloqueado). Avaliar se vale proteger `/uploads` por igreja. |
+| 24/11/2026 | 7 | **P3 decidido: app único** com escolha da igreja (já era o comportamento do app). Branding por igreja no app fica fora do escopo até algum cliente pedir. |
+| 24/11/2026 | 7 | Um único site para todas as igrejas, com a igreja descoberta pelo domínio; `NEXT_PUBLIC_CHURCH_SLUG` continua disponível para quem quiser um site dedicado. |
+| 24/11/2026 | 7 | O papel `devAdmin` já existente é o "super admin" da plataforma (não foi criado um papel novo). |
+| 24/11/2026 | 7 | Membros importados entram ativos e sem senha; criam a senha por "Esqueci minha senha". O admin novo recebe um e-mail explicando isso. |
 | 23/11/2026 | 0 | Migrações ficam em `src/migrations/` porque `**/scripts/` está no `.gitignore`. |
 | 23/11/2026 | 0 | O app não define `trust proxy`; por isso o aceite grava `ip` e também o cabeçalho `X-Forwarded-For` bruto. Revisar se o proxy da Hostinger exige `app.set("trust proxy", ...)`. |
 
@@ -219,7 +227,7 @@
 |---|---|---|---|
 | P1 | Mercado Pago Assinaturas ou Asaas para mensalidades | Antes da Sprint 8 | Aberta |
 | P2 | Advogado para a revisão | Sprint 1 | Aberta |
-| P3 | App único ou app com a marca de cada igreja | Antes da Sprint 7 | Aberta |
+| P3 | App único ou app com a marca de cada igreja | Antes da Sprint 7 | **Decidida (24/11): app único** |
 | P4 | Preços finais | Antes do primeiro cliente | Aberta (hipótese: R$ 300–500 + R$ 97/R$ 197) |
 | P5 | Escopo da tesouraria | Após a Sprint 8 | Aberta |
 
@@ -228,6 +236,7 @@
 | Data | Sprint | Entregue | Pendente / observações |
 |---|---|---|---|
 | 23/11/2026 | — | URS, plano e este documento de status criados. | Nenhuma sprint iniciada. |
+| 24/11/2026 | 7 | Site multi-igreja por domínio, tema por igreja, painel da plataforma (criar igreja + admin + convite), importação de membros por CSV, uso e limite de armazenamento, guia de implantação. | **Antes do deploy:** (1) no site da piloto, nada muda se `NEXT_PUBLIC_CHURCH_SLUG` estiver definido; se não estiver, cadastrar o domínio da piloto em `/plataforma` (até lá ela é a igreja padrão); (2) conferir que a piloto tem a logo cadastrada em Geral — o site passa a usar a logo do cadastro quando ela é uma URL válida; (3) incluir os domínios das igrejas novas em `CORS_ORIGINS` da API. |
 | 23/11/2026 | 6 | Rádio desligada por padrão, ativação só com aceite do termo de responsabilidade (ECAD) registrado, desativação, nova versão do termo tira do ar até novo aceite, revogação desliga. | **Atenção no deploy:** a rádio da igreja-piloto **sai do ar** até um admin aceitar o termo em Painel → Rádio (a ativação provisória da Sprint 0 não basta mais). Rodar `npm run legal:publish` antes (publica o termo) e avisar o admin para aceitar logo em seguida. |
 | 23/11/2026 | 5 | PIX real na conta da igreja via Mercado Pago, webhook seguro (consulta na API, assinatura, idempotência), confirmação automática de inscrições, conciliação e expiração, telas com confirmação automática (site e app). | **Antes do deploy:** cadastrar no painel do Mercado Pago (Webhooks da aplicação) a URL `https://<api>/athos_adm/api/payments/mercadopago/webhook`, evento "Pagamentos", e copiar a chave secreta para `MP_WEBHOOK_SECRET`; sem Redis, criar cron a cada 10–15 min chamando `/internal/cron/mercadopago-reconcile`. Fazer o teste real (5.11) com valor baixo antes de divulgar. |
 | 23/11/2026 | 4 | Conexão OAuth da conta Mercado Pago da igreja (PKCE, state de uso único, tokens criptografados), renovação diária, status e desconexão; card no painel. | **Antes do deploy:** (1) criar a aplicação no Mercado Pago (conta da Athos), cadastrar a URL de redirecionamento `https://<api>/athos_adm/api/payments/mercadopago/callback` e ativar PKCE; (2) definir `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_REDIRECT_URI`, `ADMIN_PANEL_URL`, `TOKEN_ENCRYPTION_KEY` (guardar cópia segura) e `CRON_SECRET`; (3) sem Redis, criar cron diário na Hostinger chamando a rota interna. Sem essas variáveis o card mostra "em preparação" e nada quebra. |

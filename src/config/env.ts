@@ -34,6 +34,8 @@ const envSchema = z.object({
   // Pasta onde ficam os arquivos enviados (áudios da rádio). Na Hostinger, use um caminho fora da pasta do deploy.
   UPLOAD_DIR: z.string().default(path.resolve(process.cwd(), "uploads")),
   RADIO_MAX_UPLOAD_MB: z.coerce.number().positive().default(100),
+  // Limite padrão de armazenamento (áudios) por igreja, em MB. Ajustável por igreja no painel da plataforma.
+  CHURCH_STORAGE_LIMIT_MB: z.coerce.number().positive().default(2048),
   // Segredo exigido no cabeçalho X-Webhook-Secret do webhook de pagamentos. Sem ele, o webhook
   // fica desligado (404). Na Sprint 5 é substituído pela assinatura do Mercado Pago.
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),

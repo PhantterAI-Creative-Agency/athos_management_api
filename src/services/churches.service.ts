@@ -16,8 +16,10 @@ import type {
   RegisterChurchDTO,
   UpdateChurchDTO,
   UpdateChurchFeaturesDTO,
+  UpdateChurchThemeDTO,
 } from "../interfaces/church.interface";
 import { hasActiveAcceptance } from "./legal.service";
+import { normalizeHost, resolveTheme, type ThemeSettings } from "../helpers/theme.helper";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -57,7 +59,9 @@ function toChurchDTO(church: {
     adsEnabled?: boolean;
     disabledAdPlacements?: string[];
     features?: ChurchFeatureSettings | null;
+    theme?: ThemeSettings | null;
   } | null;
+  domains?: string[] | null;
   homeContent?: {
     intro?: string | null;
     mission?: string | null;
@@ -115,7 +119,9 @@ function toChurchDTO(church: {
       adsEnabled: church.settings?.adsEnabled ?? true,
       disabledAdPlacements: church.settings?.disabledAdPlacements ?? [],
       features: resolveFeatures(church.settings),
+      theme: resolveTheme(church.settings?.theme),
     },
+    domains: church.domains ?? [],
     homeContent: church.homeContent
       ? {
           intro: church.homeContent.intro ?? undefined,
@@ -321,4 +327,27 @@ export async function updateChurchFeatures(
   await church.save();
 
   return resolveFeatures(church.settings);
+}
+
+export async function updateChurchTheme(churchId: string, data: UpdateChurchThemeDTO): Promise<ChurchDTO> {
+  const church = await Church.findById(churchId);
+
+  if (!church) {
+    throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
+  }
+
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined) continue;
+    if (value === null) church.set(`settings.theme.${key}`, undefined);
+    else church.set(`settings.theme.${key}`, value);
+  }
+  await church.save();
+
+  return toChurchDTO(church);
+}
+
+/** Igreja dona de um domínio (site multi-igreja: a igreja é descoberta pelo endereço). */
+export async function findChurchByHost(host: string): Promise<{ slug: string; name: string } | null> {
+  const church = await Church.findOne({ domains: normalizeHost(host) }).select("slug name").lean();
+  return church ? { slug: church.slug, name: church.name } : null;
 }

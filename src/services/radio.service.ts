@@ -1,3 +1,5 @@
+import { getStorageUsedBytes, storageLimitBytes } from "./platform.service";
+import { Church } from "../models/Church.model";
 import { isRadioActive } from "./radioActivation.service";
 import path from "node:path";
 import type { Request } from "express";
@@ -173,6 +175,19 @@ export async function uploadTrack(
     extension,
     env.RADIO_MAX_UPLOAD_MB * 1024 * 1024,
   );
+
+  // Limite de armazenamento por igreja (URS-TEN-08): confere depois de salvar, pois o tamanho só
+  // é conhecido ao fim do envio; se passar, apaga o arquivo.
+  const church = await Church.findById(requester.churchId).select("limits").lean();
+  const used = await getStorageUsedBytes(requester.churchId);
+  if (church && used + size > storageLimitBytes(church)) {
+    await removeUploadedFile(filePath);
+    throw new AppError(
+      413,
+      "STORAGE_LIMIT_EXCEEDED",
+      "Limite de armazenamento da igreja atingido. Apague áudios antigos ou fale com o suporte da plataforma.",
+    );
+  }
 
   const title = query.title?.trim() || path.basename(originalName, path.extname(originalName)) || "Sem título";
 

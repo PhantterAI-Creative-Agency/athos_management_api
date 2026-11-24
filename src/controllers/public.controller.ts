@@ -6,7 +6,7 @@ import * as mediaService from "../services/media.service";
 import * as radioService from "../services/radio.service";
 import * as ministriesService from "../services/ministries.service";
 import * as adsService from "../services/ads.service";
-import { sendSuccess } from "../helpers/response.helper";
+import { sendError, sendSuccess } from "../helpers/response.helper";
 import type { ListAdsPublicQueryDTO } from "../interfaces/ad.interface";
 
 export async function getChurch(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -84,6 +84,21 @@ export async function clickAd(req: Request, res: Response, next: NextFunction): 
     const church = await churchesService.getChurchBySlug(String(req.params.slug));
     await adsService.registerClickPublic(church.id, String(req.params.id));
     res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** Resolve a igreja pelo endereço do site (domínio/subdomínio cadastrado). */
+export async function getChurchByHost(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const host = String(req.query.host ?? "");
+    const church = host ? await churchesService.findChurchByHost(host) : null;
+    if (!church) {
+      sendError(res, 404, "CHURCH_NOT_FOUND", "Nenhuma igreja cadastrada para este endereço");
+      return;
+    }
+    sendSuccess(res, church);
   } catch (error) {
     next(error);
   }
