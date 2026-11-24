@@ -195,10 +195,10 @@ As sprints 1 e 2 dependem da 0. A 5 depende da 4. A 6 depende da 0. A 8 depende 
 
 | # | Tarefa | Repo |
 |---|---|---|
-| 8.1 | Decidir P1 (Mercado Pago Assinaturas ou Asaas), sempre na conta do Athos. | Decisão |
+| 8.1 | Decidir P1 — **decidido: Mercado Pago (conta da PhantterAI), PIX e Assinaturas no cartão**. | Decisão |
 | 8.2 | Model `Subscription`: `churchId`, `plan` (`essencial`, `completo`), `status` (`trial`, `active`, `past_due`, `canceled`), `currentPeriodEnd`, `providerSubscriptionId`. | API |
 | 8.3 | Mapear plano → feature flags (Completo libera IA, anúncios, rádio e PIX integrado). | API |
-| 8.4 | Integração de cobrança recorrente (PIX/boleto) e webhook validado de pagamento da mensalidade. | API |
+| 8.4 | Integração de cobrança recorrente (PIX e assinatura no cartão) e webhook validado de pagamento da mensalidade. | API |
 | 8.5 | Carência e modo somente leitura para inadimplentes, com avisos por e-mail. | API, WEB |
 | 8.6 | Tela "Meu plano" no painel: plano atual, próxima cobrança, faturas. | WEB |
 | 8.7 | Registro da taxa de implantação como cobrança única. | API |

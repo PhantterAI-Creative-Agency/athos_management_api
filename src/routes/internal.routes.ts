@@ -11,7 +11,7 @@ router.get("/cron/media-youtube-sync", mediaSyncLimiter, internalController.sync
 router.post("/cron/mercadopago-refresh-tokens", requireCronSecret, internalController.refreshMercadoPagoTokens);
 // Conciliação de pagamentos pendentes (rodar a cada 10–15 min quando não há Redis).
 router.post("/cron/mercadopago-reconcile", requireCronSecret, internalController.reconcileMercadoPago);
-// Avisos de cobrança aos admins das igrejas (diário).
-router.post("/cron/billing-notices", requireCronSecret, internalController.billingNotices);
+// Ciclo diário das mensalidades: gera faturas PIX, confere pagamentos, inadimplência e avisos.
+router.post("/cron/billing-cycle", requireCronSecret, internalController.billingCycle);
 
 export default router;

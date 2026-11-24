@@ -41,7 +41,7 @@ Deixar o Athos Management pronto para ser vendido a igrejas além da igreja-pilo
 | D1 | Provedor de pagamento | **Somente Mercado Pago.** Abstração para outros provedores só quando um cliente pedir. |
 | D2 | Conta de recebimento | Cada igreja conecta **a própria conta Mercado Pago via OAuth**. O dinheiro cai direto na conta da igreja e nunca passa pelo Athos. |
 | D3 | Comissão | **Não há comissão sobre ofertas.** A receita do Athos vem da implantação e da mensalidade. |
-| D4 | Cobrança das mensalidades | Feita por **conta separada, do próprio Athos** (Mercado Pago Assinaturas ou Asaas — ver P1). |
+| D4 | Cobrança das mensalidades | Feita por **conta separada, do próprio Athos** no **Mercado Pago da PhantterAI**, por PIX (fatura mensal) ou cartão (Mercado Pago Assinaturas) — P1 decidida em 24/11. |
 | D5 | Solução provisória de PIX | Até a integração ficar pronta, exibir a **chave PIX estática da igreja**, com botão de copiar, sem confirmação automática. O fluxo simulado sai do ar. |
 | D6 | Contrato | **Aceite eletrônico** pelo **representante legal** da igreja, com registro de evidências. Inclui DPA (igreja controladora, Athos operador). |
 | D7 | Revisão jurídica | Minuta preparada internamente e **revisada uma única vez por advogado** de tecnologia/LGPD. O mesmo modelo serve para todas as igrejas. |
@@ -152,7 +152,7 @@ Prioridade: **M** = obrigatório antes do primeiro cliente pagante; **S** = dese
 |---|---|---|
 | URS-COB-01 | Cada igreja deve ter um plano (`essencial`, `completo`) e um status de assinatura (`trial`, `ativa`, `inadimplente`, `cancelada`). | M |
 | URS-COB-02 | Os recursos do plano Completo (IA, anúncios, rádio, PIX integrado) só ficam disponíveis para igrejas nesse plano. | M |
-| URS-COB-03 | A mensalidade é cobrada na conta do Athos (D4), com PIX e boleto, e a confirmação atualiza o status da assinatura. | S |
+| URS-COB-03 | A mensalidade é cobrada na conta do Athos (D4), com PIX ou cartão de crédito (assinatura), e a confirmação atualiza o status da assinatura. | S |
 | URS-COB-04 | Igreja inadimplente recebe aviso e, após prazo de carência, fica em modo somente leitura (nunca perde dados sem aviso). | S |
 | URS-COB-05 | A taxa de implantação é registrada como cobrança única. | C |
 
@@ -171,7 +171,7 @@ Prioridade: **M** = obrigatório antes do primeiro cliente pagante; **S** = dese
 
 | # | Pendência | Quando decidir |
 |---|---|---|
-| P1 | Mercado Pago Assinaturas ou Asaas para cobrar as mensalidades das igrejas. | Antes da Sprint 8 |
+| P1 | ~~Provedor das mensalidades.~~ **Decidida (24/11): Mercado Pago, PIX e Assinaturas no cartão.** | Antes da Sprint 8 |
 | P2 | Escritório/advogado que fará a revisão (orçamento estimado: R$ 1.500–3.000). | Durante a Sprint 1 |
 | P3 | App: app único com seleção de igreja ou build com a marca de cada igreja (custo de publicação nas lojas). | Antes da Sprint 7 |
 | P4 | Valores finais de implantação e mensalidade, após conversa com pastores e pesquisa de concorrentes. | Antes do primeiro cliente |

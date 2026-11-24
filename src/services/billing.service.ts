@@ -4,33 +4,42 @@ import { Church } from "../models/Church.model";
 import { User } from "../models/User.model";
 import { LegalAcceptance } from "../models/LegalAcceptance.model";
 import { BillingInvoice } from "../models/BillingInvoice.model";
-import { BillingWebhookEvent } from "../models/BillingWebhookEvent.model";
 import { AppError } from "../middlewares/errorHandler";
 import { auditLogWithCtx } from "../helpers/auditLogger.helper";
+import { cancelPayment, createPixPayment, getPayment, type MercadoPagoPayment } from "../helpers/mercadopagoPayments.helper";
 import {
-  createCustomer,
-  createPayment,
-  createSubscription,
-  deleteSubscription,
-  getPayment,
-  isAsaasConfigured,
-  listSubscriptionPayments,
-  type AsaasPayment,
-} from "../helpers/asaas.helper";
+  billingNotificationUrl,
+  cancelPreapproval,
+  createPreapproval,
+  getAuthorizedPayment,
+  getPreapproval,
+  isBillingConfigured,
+  platformToken,
+  updatePreapprovalAmount,
+} from "../helpers/mercadopagoBilling.helper";
 import { getBillingState, getPlans, planPrice, type BillingState, type PlanDTO, type PlanId } from "../helpers/plans.helper";
 import { sendBillingNotice, type BillingNoticeKind } from "../jobs/billingNoticeEmail.job";
 
+/**
+ * Mensalidades das igrejas, cobradas na conta Mercado Pago da PhantterAI. Duas formas:
+ * - "pix": a plataforma gera uma fatura PIX perto de cada vencimento;
+ * - "card": assinatura do Mercado Pago (preapproval) que cobra o cartão todo mês.
+ */
+
 const DAY = 86_400_000;
-export type BillingType = "UNDEFINED" | "BOLETO" | "PIX";
+export type PaymentMethod = "pix" | "card";
 
 export interface InvoiceDTO {
   id: string;
   kind: "monthly" | "setup";
+  method: PaymentMethod;
   value: number;
   dueDate: string;
   status: string;
   invoiceUrl?: string;
-  bankSlipUrl?: string;
+  pixCopyPaste?: string;
+  pixQrCode?: string;
+  expiresAt?: string;
   paidAt?: string;
 }
 
@@ -40,10 +49,13 @@ export interface BillingOverviewDTO {
   price: number;
   trialEndsAt?: string;
   currentPeriodEnd?: string;
+  nextDueDate?: string;
   subscribed: boolean;
-  billingType?: BillingType;
+  paymentMethod?: PaymentMethod;
+  /** Assinatura no cartão aguardando o admin informar o cartão no Mercado Pago. */
+  cardCheckoutUrl?: string;
   billingConfigured: boolean;
-  /** CNPJ do contrato aceito (necessário para emitir as faturas). */
+  /** CNPJ do contrato aceito. */
   contractCnpj?: string;
   invoices: InvoiceDTO[];
 }
@@ -56,60 +68,42 @@ async function loadChurch(churchId: string) {
   return church;
 }
 
-function toInvoiceDTO(invoice: {
+type InvoiceLike = {
   _id: unknown;
   kind: string;
+  method?: string | null;
   value: number;
   dueDate: Date;
   status: string;
   invoiceUrl?: string | null;
-  bankSlipUrl?: string | null;
+  pixCopyPaste?: string | null;
+  pixQrCodeBase64?: string | null;
+  expiresAt?: Date | null;
   paidAt?: Date | null;
-}): InvoiceDTO {
+};
+
+function toInvoiceDTO(invoice: InvoiceLike): InvoiceDTO {
+  const open = invoice.status === "pending" || invoice.status === "overdue";
   return {
     id: String(invoice._id),
     kind: invoice.kind as InvoiceDTO["kind"],
+    method: (invoice.method as PaymentMethod) ?? "pix",
     value: invoice.value,
     dueDate: invoice.dueDate.toISOString(),
     status: invoice.status,
-    invoiceUrl: invoice.invoiceUrl ?? undefined,
-    bankSlipUrl: invoice.bankSlipUrl ?? undefined,
+    invoiceUrl: open ? (invoice.invoiceUrl ?? undefined) : undefined,
+    pixCopyPaste: open ? (invoice.pixCopyPaste ?? undefined) : undefined,
+    pixQrCode: open && invoice.pixQrCodeBase64 ? `data:image/png;base64,${invoice.pixQrCodeBase64}` : undefined,
+    expiresAt: invoice.expiresAt?.toISOString(),
     paidAt: invoice.paidAt?.toISOString(),
   };
 }
 
-/** CNPJ informado pelo representante legal no aceite do contrato (Sprint 1). */
 async function contractCnpj(churchId: string): Promise<string | undefined> {
   const record = await LegalAcceptance.findOne({ churchId, documentType: "saas_contract", action: "accept" })
     .sort({ createdAt: -1 })
     .lean();
   return record?.signer?.cnpj ?? undefined;
-}
-
-export async function getBillingOverview(churchId: string): Promise<BillingOverviewDTO> {
-  const church = await loadChurch(churchId);
-  const state = getBillingState(church.subscription);
-  const invoices = await BillingInvoice.find({ churchId }).sort({ dueDate: -1 }).limit(24).lean();
-  return {
-    state: { ...state, accessUntil: state.accessUntil?.toISOString() },
-    plans: getPlans(),
-    price: planPrice(state.plan),
-    trialEndsAt: church.subscription?.trialEndsAt?.toISOString(),
-    currentPeriodEnd: church.subscription?.currentPeriodEnd?.toISOString(),
-    subscribed: !!church.subscription?.asaasSubscriptionId && church.subscription?.status !== "canceled",
-    billingType: (church.subscription?.billingType as BillingType | undefined) ?? undefined,
-    billingConfigured: isAsaasConfigured(),
-    contractCnpj: await contractCnpj(churchId),
-    invoices: invoices.map(toInvoiceDTO),
-  };
-}
-
-function invoiceStatus(payment: AsaasPayment): "pending" | "paid" | "overdue" | "refunded" | "canceled" {
-  if (payment.deleted) return "canceled";
-  if (["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(payment.status)) return "paid";
-  if (payment.status === "OVERDUE") return "overdue";
-  if (["REFUNDED", "REFUND_IN_PROGRESS", "CHARGEBACK_REQUESTED", "CHARGEBACK_DISPUTE"].includes(payment.status)) return "refunded";
-  return "pending";
 }
 
 function addMonth(date: Date): Date {
@@ -118,40 +112,62 @@ function addMonth(date: Date): Date {
   return next;
 }
 
-/** Grava a fatura e ajusta a assinatura conforme o pagamento (sempre consultado no Asaas). */
-async function applyPayment(church: ChurchDoc, payment: AsaasPayment, kind: "monthly" | "setup"): Promise<void> {
-  const status = invoiceStatus(payment);
-  const dueDate = new Date(`${payment.dueDate}T12:00:00Z`);
-  const paidAt = payment.paymentDate || payment.confirmedDate ? new Date(`${payment.paymentDate ?? payment.confirmedDate}T12:00:00Z`) : undefined;
+function assertBillable(church: ChurchDoc): void {
+  if (!church.subscription?.plan || church.subscription.exempt) {
+    throw new AppError(409, "BILLING_EXEMPT", "Esta igreja está isenta de mensalidade");
+  }
+}
 
-  await BillingInvoice.findOneAndUpdate(
-    { providerPaymentId: payment.id },
-    {
-      $set: {
-        churchId: church._id,
-        kind,
-        value: payment.value,
-        dueDate,
-        status,
-        providerStatus: payment.status,
-        invoiceUrl: payment.invoiceUrl ?? undefined,
-        bankSlipUrl: payment.bankSlipUrl ?? undefined,
-        ...(paidAt && status === "paid" ? { paidAt } : {}),
-      },
-    },
-    { upsert: true },
-  );
+function planName(plan: PlanId) {
+  return plan === "completo" ? "Completo" : "Essencial";
+}
 
-  if (kind !== "monthly" || church.subscription?.status === "canceled") return;
+export async function getBillingOverview(churchId: string): Promise<BillingOverviewDTO> {
+  const church = await loadChurch(churchId);
+  await markOverdue(church);
+  const state = getBillingState(church.subscription);
+  const invoices = await BillingInvoice.find({ churchId }).sort({ dueDate: -1, createdAt: -1 }).limit(24).lean();
+  const sub = church.subscription;
+  const cardPending = sub?.subscribed && sub.paymentMethod === "card" && sub.mpPreapprovalStatus === "pending";
+  return {
+    state: { ...state, accessUntil: state.accessUntil?.toISOString() },
+    plans: getPlans(),
+    price: planPrice(state.plan),
+    trialEndsAt: sub?.trialEndsAt?.toISOString(),
+    currentPeriodEnd: sub?.currentPeriodEnd?.toISOString(),
+    nextDueDate: sub?.subscribed ? sub.nextDueDate?.toISOString() : undefined,
+    subscribed: !!sub?.subscribed,
+    paymentMethod: (sub?.paymentMethod as PaymentMethod | undefined) ?? undefined,
+    cardCheckoutUrl: cardPending && sub?.mpPreapprovalId ? await checkoutUrl(sub.mpPreapprovalId) : undefined,
+    billingConfigured: isBillingConfigured(),
+    contractCnpj: await contractCnpj(churchId),
+    invoices: invoices.map(toInvoiceDTO),
+  };
+}
 
+async function checkoutUrl(preapprovalId: string): Promise<string | undefined> {
+  try {
+    return (await getPreapproval(preapprovalId)).init_point;
+  } catch {
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------- pagamentos confirmados
+
+/** Aplica um pagamento de mensalidade confirmado/recusado à assinatura. */
+async function applyMonthlyResult(church: ChurchDoc, status: "paid" | "failed", dueDate: Date): Promise<void> {
+  if (church.subscription?.status === "canceled") return;
   if (status === "paid") {
     const periodEnd = addMonth(dueDate);
     const current = church.subscription?.currentPeriodEnd;
     church.set("subscription.status", "active");
     church.set("subscription.currentPeriodEnd", current && current > periodEnd ? current : periodEnd);
+    const next = church.subscription?.nextDueDate;
+    if (!next || next <= dueDate) church.set("subscription.nextDueDate", periodEnd);
     church.set("subscription.graceUntil", undefined);
     church.set("subscription.lastNotice", undefined);
-  } else if (status === "overdue") {
+  } else {
     const graceUntil = new Date(dueDate.getTime() + env.BILLING_GRACE_DAYS * DAY);
     church.set("subscription.status", "past_due");
     if (!church.subscription?.graceUntil || church.subscription.graceUntil > graceUntil) {
@@ -161,149 +177,308 @@ async function applyPayment(church: ChurchDoc, payment: AsaasPayment, kind: "mon
   await church.save();
 }
 
-async function syncSubscriptionInvoices(church: ChurchDoc): Promise<void> {
-  const subscriptionId = church.subscription?.asaasSubscriptionId;
-  if (!subscriptionId) return;
-  const { data } = await listSubscriptionPayments(subscriptionId);
-  for (const payment of data ?? []) await applyPayment(church, payment, "monthly");
+/** Fatura PIX: consulta o pagamento na API (conta da PhantterAI) e atualiza fatura e assinatura. */
+export async function syncPixInvoice(paymentId: string): Promise<boolean> {
+  const invoice = await BillingInvoice.findOne({ providerPaymentId: String(paymentId), method: "pix" });
+  if (!invoice) return false;
+  const payment = await getPayment(platformToken(), String(paymentId));
+  if (payment.external_reference && payment.external_reference !== String(invoice._id)) return false;
+
+  let next = invoice.status;
+  if (payment.status === "approved" && Math.abs(Number(payment.transaction_amount) - invoice.value) < 0.01) next = "paid";
+  else if (payment.status === "refunded" || payment.status === "charged_back") next = "refunded";
+  else if (payment.status === "cancelled" || payment.status === "rejected") next = invoice.status === "paid" ? "paid" : "canceled";
+
+  if (next === invoice.status) return false;
+  const wasPaid = invoice.status === "paid";
+  invoice.status = next;
+  invoice.providerStatus = payment.status;
+  if (next === "paid") {
+    invoice.paidAt = payment.date_approved ? new Date(payment.date_approved) : new Date();
+    invoice.pixCopyPaste = undefined;
+    invoice.pixQrCodeBase64 = undefined;
+  }
+  await invoice.save();
+
+  if (next === "paid" && !wasPaid && invoice.kind === "monthly") {
+    const church = await loadChurch(String(invoice.churchId));
+    await applyMonthlyResult(church, "paid", invoice.dueDate);
+  }
+  return true;
 }
 
-async function ensureCustomer(church: ChurchDoc, email?: string): Promise<string> {
-  if (church.subscription?.asaasCustomerId) return church.subscription.asaasCustomerId;
-  const cnpj = await contractCnpj(String(church._id));
-  if (!cnpj) {
-    throw new AppError(409, "CONTRACT_REQUIRED", "O representante legal precisa aceitar o contrato (com o CNPJ) antes da cobrança");
+/** Cobrança do cartão (assinatura): registra a fatura e atualiza a assinatura. */
+export async function syncCardCharge(authorizedPaymentId: string): Promise<boolean> {
+  const charge = await getAuthorizedPayment(String(authorizedPaymentId));
+  const church = await Church.findOne({ "subscription.mpPreapprovalId": charge.preapproval_id });
+  if (!church) return false;
+
+  const paymentStatus = charge.payment?.status;
+  const status = paymentStatus === "approved" ? "paid" : paymentStatus === "rejected" || charge.status === "processed" ? "overdue" : "pending";
+  const dueDate = new Date(charge.debit_date ?? charge.date_created ?? Date.now());
+  const previous = await BillingInvoice.findOne({ providerPaymentId: `ap_${charge.id}` }).lean();
+
+  await BillingInvoice.findOneAndUpdate(
+    { providerPaymentId: `ap_${charge.id}` },
+    {
+      $set: {
+        churchId: church._id,
+        kind: "monthly",
+        method: "card",
+        value: charge.transaction_amount,
+        dueDate,
+        status: previous?.status === "paid" ? "paid" : status,
+        providerStatus: `${charge.status}/${paymentStatus ?? "-"}`,
+        ...(status === "paid" && previous?.status !== "paid" ? { paidAt: new Date() } : {}),
+      },
+    },
+    { upsert: true },
+  );
+
+  if (status === "paid" && previous?.status !== "paid") await applyMonthlyResult(church, "paid", dueDate);
+  if (status === "overdue" && previous?.status !== "paid") await applyMonthlyResult(church, "failed", dueDate);
+  return true;
+}
+
+/** Mudança de situação da assinatura no cartão (autorizada, cancelada no Mercado Pago, etc.). */
+export async function syncPreapproval(preapprovalId: string): Promise<boolean> {
+  const church = await Church.findOne({ "subscription.mpPreapprovalId": preapprovalId });
+  if (!church) return false;
+  const preapproval = await getPreapproval(preapprovalId);
+  church.set("subscription.mpPreapprovalStatus", preapproval.status);
+  if (preapproval.next_payment_date) church.set("subscription.nextDueDate", new Date(preapproval.next_payment_date));
+  if ((preapproval.status === "canceled" || preapproval.status === "cancelled") && church.subscription?.status !== "canceled") {
+    // Cancelada no Mercado Pago (pela igreja ou após cobranças recusadas): acesso até o fim do período pago.
+    const now = new Date();
+    const until = church.subscription?.currentPeriodEnd ?? now;
+    church.set("subscription.status", "canceled");
+    church.set("subscription.subscribed", false);
+    church.set("subscription.canceledAt", now);
+    church.set("subscription.currentPeriodEnd", until > now ? until : now);
   }
-  const customer = await createCustomer({ name: church.name, cpfCnpj: cnpj, email, externalReference: `church:${church._id}` });
-  church.set("subscription.asaasCustomerId", customer.id);
   await church.save();
-  return customer.id;
+  return true;
 }
 
-function assertBillable(church: ChurchDoc): void {
-  if (!church.subscription?.plan || church.subscription.exempt) {
-    throw new AppError(409, "BILLING_EXEMPT", "Esta igreja está isenta de mensalidade");
+// ---------------------------------------------------------------- faturas PIX
+
+async function payerData(church: ChurchDoc) {
+  const email =
+    church.subscription?.billingEmail ??
+    (await User.findOne({ churchId: church._id, roles: "admin", active: true }).select("email").lean())?.email;
+  if (!email) throw new AppError(409, "BILLING_EMAIL_REQUIRED", "A igreja precisa de um administrador com e-mail");
+  const cnpj = await contractCnpj(String(church._id));
+  return { email, cnpj };
+}
+
+/** Gera a fatura PIX de um vencimento. Vale até o fim da carência (no máximo 30 dias). */
+async function createPixInvoice(church: ChurchDoc, kind: "monthly" | "setup", value: number, dueDate: Date, description: string) {
+  const { email, cnpj } = await payerData(church);
+  const invoiceId = new Types.ObjectId();
+  const now = new Date();
+  const maxExpiry = new Date(now.getTime() + 29 * DAY);
+  const graceEnd = new Date(Math.max(dueDate.getTime(), now.getTime()) + env.BILLING_GRACE_DAYS * DAY);
+  const expiresAt = graceEnd < maxExpiry ? graceEnd : maxExpiry;
+
+  const payment: MercadoPagoPayment = await createPixPayment(platformToken(), {
+    amount: value,
+    description,
+    externalReference: String(invoiceId),
+    payerEmail: email,
+    payerIdentification: cnpj ? { type: "CNPJ", number: cnpj } : undefined,
+    expiresAt,
+    notificationUrl: billingNotificationUrl(),
+  });
+  const data = payment.point_of_interaction?.transaction_data;
+  return BillingInvoice.create({
+    _id: invoiceId,
+    churchId: church._id,
+    kind,
+    method: "pix",
+    providerPaymentId: String(payment.id),
+    value,
+    dueDate,
+    status: "pending",
+    providerStatus: payment.status,
+    pixCopyPaste: data?.qr_code,
+    pixQrCodeBase64: data?.qr_code_base64,
+    invoiceUrl: data?.ticket_url,
+    expiresAt,
+  });
+}
+
+async function openMonthlyInvoice(churchId: Types.ObjectId | string) {
+  return BillingInvoice.findOne({ churchId, kind: "monthly", method: "pix", status: { $in: ["pending", "overdue"] } })
+    .sort({ dueDate: 1 });
+}
+
+/** Fatura em aberto vencida → inadimplência (carência a partir do vencimento). */
+async function markOverdue(church: ChurchDoc, now = new Date()): Promise<void> {
+  if (!church.subscription?.subscribed || church.subscription.paymentMethod !== "pix") return;
+  const open = await openMonthlyInvoice(church._id);
+  if (!open || open.dueDate > now) return;
+  if (open.status !== "overdue") {
+    open.status = "overdue";
+    await open.save();
   }
+  if (church.subscription.status !== "past_due") await applyMonthlyResult(church, "failed", open.dueDate);
 }
 
-/** Contrata o plano: cria a assinatura mensal no Asaas, com 1º vencimento no fim do teste. */
+/** Gera a fatura do próximo vencimento quando faltam BILLING_INVOICE_DAYS_BEFORE dias. */
+async function ensureUpcomingInvoice(church: ChurchDoc, now = new Date()): Promise<void> {
+  const sub = church.subscription;
+  if (!sub?.subscribed || sub.paymentMethod !== "pix" || !sub.nextDueDate || sub.exempt) return;
+  if (sub.nextDueDate.getTime() - now.getTime() > env.BILLING_INVOICE_DAYS_BEFORE * DAY) return;
+  const exists = await BillingInvoice.exists({ churchId: church._id, kind: "monthly", method: "pix", dueDate: sub.nextDueDate, status: { $ne: "canceled" } });
+  if (exists) return;
+  const plan = sub.plan as PlanId;
+  await createPixInvoice(church, "monthly", planPrice(plan), sub.nextDueDate, `Athos Management — plano ${planName(plan)} — ${church.name}`);
+}
+
+/**
+ * "Pagar agora" (PIX): devolve a fatura em aberto; se o PIX dela expirou, gera outro para o mesmo
+ * vencimento.
+ */
+export async function payNow(churchId: string): Promise<InvoiceDTO> {
+  const church = await loadChurch(churchId);
+  assertBillable(church);
+  if (church.subscription?.paymentMethod !== "pix" || !church.subscription.subscribed) {
+    throw new AppError(409, "NOT_PIX_SUBSCRIPTION", "A igreja não paga a mensalidade por PIX");
+  }
+  await ensureUpcomingInvoice(church);
+  let open = await openMonthlyInvoice(church._id);
+  if (open && open.expiresAt && open.expiresAt <= new Date()) {
+    await cancelPayment(platformToken(), open.providerPaymentId).catch(() => undefined);
+    open.status = "canceled";
+    await open.save();
+    const plan = church.subscription.plan as PlanId;
+    open = await createPixInvoice(church, "monthly", open.value, open.dueDate, `Athos Management — plano ${planName(plan)} — ${church.name}`);
+  }
+  if (!open) throw new AppError(404, "NO_OPEN_INVOICE", "Não há mensalidade em aberto no momento");
+  return toInvoiceDTO(open);
+}
+
+// ---------------------------------------------------------------- contratar, trocar, cancelar
+
+function backUrl(church: ChurchDoc): string {
+  const base = (process.env.ADMIN_PANEL_URL ?? "").replace(/\/+$/, "");
+  return `${base}/admin_athos/${church.slug}/meu-plano?assinatura=retorno`;
+}
+
+/** Contrata o plano por PIX mensal ou cartão. A 1ª cobrança é no fim do teste (ou hoje). */
 export async function subscribe(
   churchId: string,
   userId: string,
-  input: { plan: PlanId; billingType: BillingType },
+  input: { plan: PlanId; paymentMethod: PaymentMethod },
 ): Promise<BillingOverviewDTO> {
   const church = await loadChurch(churchId);
   assertBillable(church);
-  if (church.subscription?.asaasSubscriptionId && church.subscription.status !== "canceled") {
+  if (church.subscription?.subscribed) {
     throw new AppError(409, "ALREADY_SUBSCRIBED", "A igreja já tem uma assinatura ativa. Use a troca de plano.");
   }
+  platformToken();
+  if (!(await contractCnpj(churchId))) {
+    throw new AppError(409, "CONTRACT_REQUIRED", "O representante legal precisa aceitar o contrato (com o CNPJ) antes da cobrança");
+  }
   const admin = await User.findById(userId).select("email").lean();
-  const customer = await ensureCustomer(church, admin?.email ?? undefined);
+  if (!admin?.email) throw new AppError(409, "BILLING_EMAIL_REQUIRED", "Cadastre um e-mail no seu perfil");
 
   const now = new Date();
   const trialEnd = church.subscription?.trialEndsAt;
   const inTrial = church.subscription?.status === "trial" && trialEnd && trialEnd > now;
   const firstDue = inTrial ? trialEnd! : now;
 
-  const created = await createSubscription({
-    customer,
-    value: planPrice(input.plan),
-    nextDueDate: firstDue,
-    billingType: input.billingType,
-    description: `Athos Management — plano ${input.plan === "completo" ? "Completo" : "Essencial"} — ${church.name}`,
-    externalReference: `church:${church._id}:monthly`,
-  });
-
   church.set("subscription.plan", input.plan);
-  church.set("subscription.asaasSubscriptionId", created.id);
-  church.set("subscription.billingType", input.billingType);
+  church.set("subscription.paymentMethod", input.paymentMethod);
+  church.set("subscription.billingEmail", admin.email);
+  church.set("subscription.nextDueDate", firstDue);
   church.set("subscription.canceledAt", undefined);
   if (!inTrial) {
-    // Teste já acabou: a 1ª fatura vence hoje e a carência começa agora.
     church.set("subscription.status", "past_due");
     church.set("subscription.graceUntil", new Date(now.getTime() + env.BILLING_GRACE_DAYS * DAY));
   }
-  await church.save();
-  await syncSubscriptionInvoices(church).catch(() => undefined);
 
-  await auditLogWithCtx({ action: "CREATE", entity: "Subscription", churchId, userId, metadata: { plan: input.plan, billingType: input.billingType } });
+  if (input.paymentMethod === "card") {
+    const preapproval = await createPreapproval({
+      reason: `Athos Management — plano ${planName(input.plan)} — ${church.name}`,
+      externalReference: `church:${church._id}`,
+      payerEmail: admin.email,
+      amount: planPrice(input.plan),
+      startDate: firstDue > now ? firstDue : new Date(now.getTime() + 60_000),
+      backUrl: backUrl(church),
+    });
+    church.set("subscription.mpPreapprovalId", preapproval.id);
+    church.set("subscription.mpPreapprovalStatus", preapproval.status);
+  }
+  church.set("subscription.subscribed", true);
+  await church.save();
+  if (input.paymentMethod === "pix") await ensureUpcomingInvoice(church);
+
+  await auditLogWithCtx({ action: "CREATE", entity: "Subscription", churchId, userId, metadata: { ...input } });
   return getBillingOverview(churchId);
 }
 
-/**
- * Troca de plano. Como a API do Asaas não documenta a troca do valor de uma assinatura, a antiga
- * é encerrada (o Asaas apaga só as cobranças em aberto) e uma nova começa no mesmo vencimento.
- */
+/** Troca de plano: o novo valor vale a partir da próxima cobrança. */
 export async function changePlan(churchId: string, userId: string, plan: PlanId): Promise<BillingOverviewDTO> {
   const church = await loadChurch(churchId);
   assertBillable(church);
   if (church.subscription?.plan === plan) return getBillingOverview(churchId);
 
-  const oldId = church.subscription?.asaasSubscriptionId;
-  if (oldId && church.subscription?.status !== "canceled") {
-    const pending = await BillingInvoice.findOne({ churchId, kind: "monthly", status: { $in: ["pending", "overdue"] } })
-      .sort({ dueDate: 1 })
-      .lean();
-    const nextDue = pending?.dueDate ?? church.subscription?.currentPeriodEnd ?? church.subscription?.trialEndsAt ?? new Date();
-
-    const created = await createSubscription({
-      customer: church.subscription!.asaasCustomerId!,
-      value: planPrice(plan),
-      nextDueDate: nextDue,
-      billingType: (church.subscription?.billingType as BillingType) ?? "UNDEFINED",
-      description: `Athos Management — plano ${plan === "completo" ? "Completo" : "Essencial"} — ${church.name}`,
-      externalReference: `church:${church._id}:monthly`,
-    });
-    await deleteSubscription(oldId);
-    await BillingInvoice.updateMany({ churchId, kind: "monthly", status: { $in: ["pending", "overdue"] } }, { $set: { status: "canceled" } });
-    church.set("subscription.asaasSubscriptionId", created.id);
+  if (church.subscription?.subscribed && church.subscription.paymentMethod === "card" && church.subscription.mpPreapprovalId) {
+    await updatePreapprovalAmount(church.subscription.mpPreapprovalId, planPrice(plan));
   }
   church.set("subscription.plan", plan);
   await church.save();
-  await syncSubscriptionInvoices(church).catch(() => undefined);
+
+  if (church.subscription?.subscribed && church.subscription.paymentMethod === "pix") {
+    // Fatura PIX ainda não paga é refeita com o novo valor.
+    const open = await openMonthlyInvoice(church._id);
+    if (open) {
+      await cancelPayment(platformToken(), open.providerPaymentId).catch(() => undefined);
+      open.status = "canceled";
+      await open.save();
+      await createPixInvoice(church, "monthly", planPrice(plan), open.dueDate, `Athos Management — plano ${planName(plan)} — ${church.name}`);
+    }
+  }
 
   await auditLogWithCtx({ action: "UPDATE", entity: "Subscription", churchId, userId, metadata: { plan } });
   return getBillingOverview(churchId);
 }
 
-/** Cancela: encerra a cobrança; o acesso completo vale até o fim do período pago (ou do teste). */
+/** Cancela: para as cobranças; o acesso completo vale até o fim do período pago (ou do teste). */
 export async function cancelSubscription(churchId: string, userId: string): Promise<BillingOverviewDTO> {
   const church = await loadChurch(churchId);
   assertBillable(church);
-  if (church.subscription?.asaasSubscriptionId) await deleteSubscription(church.subscription.asaasSubscriptionId);
-  await BillingInvoice.updateMany({ churchId, kind: "monthly", status: "pending" }, { $set: { status: "canceled" } });
+  const sub = church.subscription;
+  if (sub?.paymentMethod === "card" && sub.mpPreapprovalId) await cancelPreapproval(sub.mpPreapprovalId);
+  const open = await BillingInvoice.find({ churchId, kind: "monthly", method: "pix", status: { $in: ["pending", "overdue"] } });
+  for (const invoice of open) {
+    await cancelPayment(platformToken(), invoice.providerPaymentId).catch(() => undefined);
+    invoice.status = "canceled";
+    await invoice.save();
+  }
 
   const now = new Date();
-  const until = church.subscription?.currentPeriodEnd ?? church.subscription?.trialEndsAt ?? now;
+  const until = sub?.currentPeriodEnd ?? sub?.trialEndsAt ?? now;
   church.set("subscription.status", "canceled");
+  church.set("subscription.subscribed", false);
   church.set("subscription.canceledAt", now);
   church.set("subscription.currentPeriodEnd", until > now ? until : now);
-  church.set("subscription.asaasSubscriptionId", undefined);
   await church.save();
 
   await auditLogWithCtx({ action: "UPDATE", entity: "Subscription", churchId, userId, metadata: { event: "canceled" } });
   return getBillingOverview(churchId);
 }
 
-/** Taxa de implantação (cobrança única), lançada pela equipe da plataforma. */
+// ---------------------------------------------------------------- plataforma
+
+/** Taxa de implantação: fatura PIX única. */
 export async function chargeSetupFee(churchId: string, value: number, dueDate: Date): Promise<InvoiceDTO> {
   const church = await loadChurch(churchId);
-  const admin = await User.findOne({ churchId, roles: "admin" }).select("email").lean();
-  const customer = await ensureCustomer(church, admin?.email ?? undefined);
-  const payment = await createPayment({
-    customer,
-    value,
-    dueDate,
-    billingType: "UNDEFINED",
-    description: `Athos Management — implantação — ${church.name}`,
-    externalReference: `church:${church._id}:setup`,
-  });
-  await applyPayment(church, payment, "setup");
-  const invoice = await BillingInvoice.findOne({ providerPaymentId: payment.id }).lean();
-  return toInvoiceDTO(invoice!);
+  const invoice = await createPixInvoice(church, "setup", value, dueDate, `Athos Management — implantação — ${church.name}`);
+  return toInvoiceDTO(invoice);
 }
 
-/** Ajustes da plataforma: plano, isenção e prazo de teste. */
 export async function setChurchBilling(
   churchId: string,
   data: { plan?: PlanId; exempt?: boolean; trialDays?: number },
@@ -320,57 +495,49 @@ export async function setChurchBilling(
   return getBillingOverview(churchId);
 }
 
-/** Assinatura inicial de uma igreja nova: plano escolhido, em teste por TRIAL_DAYS dias. */
 export function initialSubscription(plan: PlanId, exempt = false) {
   return { plan, status: "trial" as const, exempt, trialEndsAt: new Date(Date.now() + env.TRIAL_DAYS * DAY) };
 }
 
+// ---------------------------------------------------------------- notificações e rotina diária
+
 /**
- * Webhook do Asaas. Deduplica pelo id do evento e nunca confia no corpo: o pagamento é sempre
- * consultado na API antes de mudar qualquer status.
+ * Notificações do Mercado Pago das mensalidades (conta da PhantterAI). Nunca confia no corpo: o
+ * pagamento/assinatura é sempre consultado na API antes de mudar qualquer status.
  */
-export async function processAsaasEvent(body: { id?: string; event?: string; payment?: { id?: string } }): Promise<{ processed: boolean }> {
-  const paymentId = body.payment?.id;
-  if (!body.event?.startsWith("PAYMENT_") || !paymentId) return { processed: false };
-
-  if (body.id) {
-    try {
-      await BillingWebhookEvent.create({ eventId: body.id, event: body.event, paymentId });
-    } catch (error) {
-      if ((error as { code?: number }).code === 11000) return { processed: false };
-      throw error;
-    }
-  }
-
-  try {
-    const payment = await getPayment(paymentId);
-    const existing = await BillingInvoice.findOne({ providerPaymentId: payment.id }).lean();
-    let churchId = existing ? String(existing.churchId) : undefined;
-    let kind: "monthly" | "setup" = (existing?.kind as "monthly" | "setup") ?? "monthly";
-
-    if (!churchId && payment.subscription) {
-      const church = await Church.findOne({ "subscription.asaasSubscriptionId": payment.subscription }).select("_id").lean();
-      churchId = church ? String(church._id) : undefined;
-    }
-    const ref = /^church:([0-9a-f]{24}):(monthly|setup)$/.exec(payment.externalReference ?? "");
-    if (ref) {
-      churchId = churchId ?? ref[1];
-      kind = existing ? kind : (ref[2] as "monthly" | "setup");
-    }
-    if (!churchId || !Types.ObjectId.isValid(churchId)) return { processed: false };
-
-    const church = await Church.findById(churchId);
-    if (!church) return { processed: false };
-    await applyPayment(church, payment, kind);
-    return { processed: true };
-  } catch (error) {
-    // Libera o evento para a nova tentativa do Asaas.
-    if (body.id) await BillingWebhookEvent.deleteOne({ eventId: body.id });
-    throw error;
-  }
+export async function processBillingNotification(type: string | undefined, dataId: string | undefined): Promise<{ processed: boolean }> {
+  if (!type || !dataId) return { processed: false };
+  if (type === "payment") return { processed: await syncPixInvoice(dataId) };
+  if (type === "subscription_authorized_payment") return { processed: await syncCardCharge(dataId) };
+  if (type === "subscription_preapproval") return { processed: await syncPreapproval(dataId) };
+  return { processed: false };
 }
 
-/** Avisos por e-mail aos admins quando o estado da assinatura muda (rodar diariamente). */
+/**
+ * Rotina diária: gera as faturas PIX que vão vencer, confere as em aberto no Mercado Pago (cobre
+ * notificações perdidas), marca inadimplência e envia os avisos por e-mail.
+ */
+export async function runBillingCycle(now = new Date()): Promise<{ invoices: number; notices: number }> {
+  const churches = await Church.find({ "subscription.plan": { $exists: true }, "subscription.exempt": { $ne: true } });
+  let invoices = 0;
+  for (const church of churches) {
+    try {
+      const before = await BillingInvoice.countDocuments({ churchId: church._id });
+      await ensureUpcomingInvoice(church, now);
+      invoices += (await BillingInvoice.countDocuments({ churchId: church._id })) - before;
+      const pending = await BillingInvoice.find({ churchId: church._id, method: "pix", status: { $in: ["pending", "overdue"] } }).lean();
+      for (const invoice of pending) await syncPixInvoice(invoice.providerPaymentId).catch(() => undefined);
+      const fresh = await loadChurch(String(church._id));
+      await markOverdue(fresh, now);
+    } catch (error) {
+      console.error(`[billing] falha no ciclo da igreja ${String(church._id)}: ${error instanceof Error ? error.message : "erro"}`);
+    }
+  }
+  const { sent } = await sendBillingNotices(now);
+  return { invoices, notices: sent };
+}
+
+/** Avisos por e-mail aos admins quando o estado da assinatura muda. */
 export async function sendBillingNotices(now = new Date()): Promise<{ sent: number }> {
   const churches = await Church.find({ "subscription.plan": { $exists: true }, "subscription.exempt": { $ne: true } });
   let sent = 0;

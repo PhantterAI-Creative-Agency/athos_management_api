@@ -41,11 +41,13 @@ const envSchema = z.object({
   PLAN_COMPLETO_PRICE: z.coerce.number().positive().default(197),
   TRIAL_DAYS: z.coerce.number().int().nonnegative().default(30),
   BILLING_GRACE_DAYS: z.coerce.number().int().nonnegative().default(15),
-  // Asaas (conta da Athos) para cobrar as mensalidades. Sandbox por padrão.
-  ASAAS_API_KEY: z.string().optional(),
-  ASAAS_API_URL: z.string().default("https://api-sandbox.asaas.com/v3"),
-  // Token configurado no webhook do Asaas (cabeçalho asaas-access-token).
-  ASAAS_WEBHOOK_TOKEN: z.string().optional(),
+  // Mensalidades das igrejas: cobradas na conta Mercado Pago da PhantterAI (PIX mensal ou
+  // assinatura no cartão). Access token de produção da conta da PhantterAI.
+  MP_PLATFORM_ACCESS_TOKEN: z.string().optional(),
+  // Quantos dias antes do vencimento a fatura PIX é gerada.
+  BILLING_INVOICE_DAYS_BEFORE: z.coerce.number().int().min(0).max(25).default(5),
+  // URL pública das notificações das mensalidades; padrão: derivada de MP_REDIRECT_URI.
+  MP_BILLING_NOTIFICATION_URL: z.string().optional(),
   // Segredo exigido no cabeçalho X-Webhook-Secret do webhook de pagamentos. Sem ele, o webhook
   // fica desligado (404). Na Sprint 5 é substituído pela assinatura do Mercado Pago.
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),

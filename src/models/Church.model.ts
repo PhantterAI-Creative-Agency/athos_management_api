@@ -28,9 +28,15 @@ const churchSchema = new Schema(
       trialEndsAt: { type: Date },
       currentPeriodEnd: { type: Date },
       graceUntil: { type: Date },
-      billingType: { type: String, enum: ["UNDEFINED", "BOLETO", "PIX"] },
-      asaasCustomerId: { type: String },
-      asaasSubscriptionId: { type: String, index: true },
+      // Cobrança contratada pelo admin, na conta Mercado Pago da PhantterAI:
+      // "pix" = a plataforma gera uma fatura PIX a cada vencimento;
+      // "card" = assinatura do Mercado Pago (preapproval) cobrando o cartão automaticamente.
+      subscribed: { type: Boolean },
+      paymentMethod: { type: String, enum: ["pix", "card"] },
+      nextDueDate: { type: Date },
+      billingEmail: { type: String },
+      mpPreapprovalId: { type: String, index: true },
+      mpPreapprovalStatus: { type: String },
       canceledAt: { type: Date },
       lastNotice: { type: String },
     },

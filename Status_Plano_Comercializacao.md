@@ -27,7 +27,7 @@
 | 5 | Mercado Pago: PIX e webhook | Concluída (falta o teste real) | 23/11/2026 | 23/11/2026 | 10/11 |
 | 6 | Rádio opcional com aceite | Concluída (falta o aceite da igreja-piloto) | 23/11/2026 | 23/11/2026 | 5/6 |
 | 7 | Multi-igreja: temas e onboarding | Concluída | 23/11/2026 | 24/11/2026 | 10/10 |
-| 8 | Planos comerciais e cobrança | Concluída (falta configurar o Asaas de produção) | 24/11/2026 | 24/11/2026 | 7/7 |
+| 8 | Planos comerciais e cobrança | Concluída (falta configurar a conta Mercado Pago da PhantterAI) | 24/11/2026 | 24/11/2026 | 7/7 |
 | 9 | Tesouraria | Aguardando requisitos | — | — | — |
 
 **Critérios para o primeiro cliente pagante (URS §11):** 4/6 atendidos no código (valem após o deploy).
@@ -164,17 +164,17 @@
 
 ## Sprint 8 — Planos comerciais e cobrança
 
-- [x] 8.1 Decisão P1: **Asaas** (recorrência por boleto e PIX; as assinaturas do Mercado Pago no Brasil são basicamente por cartão). Fica isolado em `src/helpers/asaas.helper.ts`
-- [x] 8.2 Assinatura em `Church.subscription` (plano, status, teste, período pago, carência, ids do Asaas) + `BillingInvoice` (faturas) + `BillingWebhookEvent` (deduplicação). Igreja nova: 30 dias de teste no plano escolhido. Igrejas anteriores (piloto): Completo e isentas, sem mudança
+- [x] 8.1 Decisão P1 (pelo usuário, 24/11): **Mercado Pago, na conta da PhantterAI**, com a igreja escolhendo **PIX** (fatura mensal) ou **cartão de crédito** (Mercado Pago Assinaturas, cobrança automática). Integração em `src/helpers/mercadopagoBilling.helper.ts`. *(Uma primeira versão com Asaas foi feita sem aprovação e descartada.)*
+- [x] 8.2 Assinatura em `Church.subscription` (plano, status, teste, período pago, carência, forma de pagamento, próximo vencimento, id da assinatura no MP) + `BillingInvoice` (faturas PIX e cobranças do cartão). Igreja nova: 30 dias de teste. Igrejas anteriores (piloto): Completo e isentas, sem mudança
 - [x] 8.3 Plano → recursos: IA, anúncios e rádio só no Completo; PIX com confirmação automática (Mercado Pago) só no Completo; o Essencial mantém o PIX pela chave da igreja. Ligar recurso fora do plano → 402 `PLAN_UPGRADE_REQUIRED`
-- [x] 8.4 `POST /billing/subscribe` (cliente com o CNPJ do contrato aceito, assinatura mensal com 1º vencimento no fim do teste), troca de plano e cancelamento; webhook `POST /billing/asaas/webhook` com token, deduplicação por evento e **consulta do pagamento na API** antes de mudar o status
+- [x] 8.4 `POST /billing/subscribe` (exige o contrato aceito com CNPJ; 1º vencimento no fim do teste). **PIX:** o ciclo diário gera o PIX `BILLING_INVOICE_DAYS_BEFORE` dias antes do vencimento (expira no fim da carência, máx. 29 dias); `POST /billing/pay` devolve o PIX em aberto (refaz se expirou). **Cartão:** cria a assinatura (`/preapproval`, pendente) e o admin informa o cartão na página do Mercado Pago; cada cobrança chega por `subscription_authorized_payment`. Troca de plano (cartão: altera o valor; PIX: refaz a fatura aberta) e cancelamento. Webhook `POST /billing/mercadopago/webhook` com `x-signature` e **consulta na API** antes de mudar o status; o ciclo diário também reconcilia
 - [x] 8.5 Carência de 15 dias após o vencimento; depois, **somente leitura**: qualquer alteração responde 402 `SUBSCRIPTION_READ_ONLY` (exceto cobrança, login, termos e direitos do titular); nenhum dado é apagado. Avisos por e-mail aos admins (teste acabando, em aberto, somente leitura, cancelada), um por mudança de estado
-- [x] 8.6 Painel → **Meu plano** (plano, situação, planos lado a lado, assinar/trocar/cancelar, faturas com link de pagamento) + faixa de aviso no topo do painel; `/plataforma` mostra plano/situação e permite trocar plano, isentar, reiniciar teste
-- [x] 8.7 Taxa de implantação: botão "Cobrar implantação" em `/plataforma` (cobrança única no Asaas, aparece nas faturas da igreja)
+- [x] 8.6 Painel → **Meu plano** (plano, situação, planos lado a lado, assinar/trocar/cancelar, escolha PIX ou cartão, "Pagar com PIX" com QR Code e copia e cola, link "Informar cartão" enquanto a assinatura do cartão está pendente) + faixa de aviso no topo do painel; `/plataforma` mostra plano/situação e permite trocar plano, isentar, reiniciar teste
+- [x] 8.7 Taxa de implantação: botão "Cobrar implantação" em `/plataforma` (fatura PIX única na conta da PhantterAI, aparece nas faturas da igreja)
 
-**Validação:** suíte da API: 523 testes (19 novos). Site: build ok e fluxo no navegador contra um Asaas simulado: teste → assinar Essencial → pagamento confirmado → "Ativa" → atraso além da carência → faixa vermelha e escrita recusada (402), com "Meu plano" e "Pagar" ainda acessíveis.
+**Validação:** suíte da API: 525 testes (15 de cobrança, contra um Mercado Pago simulado: PIX gerado perto do vencimento, notificação conferida na API, pagamento → "Ativa", atraso além da carência → somente leitura (402) e "Pagar" liberando, troca de plano, cancelamento, assinatura no cartão autorizada/aprovada/recusada, taxa de implantação). Site: typecheck, lint e build ok.
 
-**A confirmar com o Asaas real:** a URL de produção (a documentação consultada só mostrava o sandbox) e se existe um campo para trocar o valor da assinatura — como não está documentado, a troca de plano encerra a assinatura antiga e cria outra no mesmo vencimento.
+**A confirmar no Mercado Pago real (sandbox antes):** (1) se o `payer_email` da assinatura precisa ser o mesmo da conta MP de quem paga; (2) quais cartões/meios a página da assinatura aceita; (3) o formato exato das notificações `subscription_preapproval` / `subscription_authorized_payment` e os status possíveis; (4) se o PIX aceita expiração de até 29 dias na conta da PhantterAI.
 
 ## Sprint 9 — Tesouraria
 
@@ -218,7 +218,7 @@
 | 23/11/2026 | 5 | O pagador precisa ter e-mail no cadastro (exigência do Mercado Pago); sem e-mail, a API pede para cadastrar. |
 | 23/11/2026 | 6 | "No ar" = flag ligada **e** termo aceito na versão vigente. Isso cumpre URS-RAD-03 mesmo para a igreja-piloto, que tinha a flag ligada provisoriamente. |
 | 23/11/2026 | 6 | Os arquivos de áudio continuam acessíveis pela URL direta de upload mesmo com a rádio desligada (o player some, mas o link do arquivo não é bloqueado). Avaliar se vale proteger `/uploads` por igreja. |
-| 24/11/2026 | 8 | **P1 decidido: Asaas** para as mensalidades. O Mercado Pago segue só para as ofertas dos membros, na conta de cada igreja. |
+| 24/11/2026 | 8 | **P1 decidido pelo usuário: Mercado Pago** (conta da PhantterAI) para as mensalidades, por PIX e por assinatura no cartão. As ofertas, dízimos e doações seguem no Mercado Pago da conta de cada igreja. A versão com Asaas, feita sem aprovação, foi removida. |
 | 24/11/2026 | 8 | A assinatura fica dentro da igreja (`Church.subscription`), não num model separado: o estado é calculado na hora (teste, carência, somente leitura) sem depender de rotina agendada. |
 | 24/11/2026 | 8 | Igrejas sem plano gravado (anteriores à cobrança) = Completo e isentas. A piloto não precisa de migração. |
 | 24/11/2026 | 8 | Somente leitura bloqueia alterações na API; o app mostra a mensagem de erro da API, mas ainda não tem uma faixa própria de aviso (avaliar se algum cliente sentir falta). |
@@ -233,7 +233,7 @@
 
 | # | Pendência | Prazo | Situação |
 |---|---|---|---|
-| P1 | Mercado Pago Assinaturas ou Asaas para mensalidades | Antes da Sprint 8 | **Decidida (24/11): Asaas** |
+| P1 | Mercado Pago Assinaturas ou Asaas para mensalidades | Antes da Sprint 8 | **Decidida (24/11) pelo usuário: Mercado Pago — PIX e Assinaturas no cartão** |
 | P2 | Advogado para a revisão | Sprint 1 | Aberta |
 | P3 | App único ou app com a marca de cada igreja | Antes da Sprint 7 | **Decidida (24/11): app único** |
 | P4 | Preços finais | Antes do primeiro cliente | Aberta (hipótese: R$ 300–500 + R$ 97/R$ 197) |
@@ -244,7 +244,7 @@
 | Data | Sprint | Entregue | Pendente / observações |
 |---|---|---|---|
 | 23/11/2026 | — | URS, plano e este documento de status criados. | Nenhuma sprint iniciada. |
-| 24/11/2026 | 8 | Planos Essencial (R$ 97) e Completo (R$ 197) com teste de 30 dias, cobrança recorrente no Asaas (boleto/PIX), webhook seguro, carência e somente leitura, avisos por e-mail, "Meu plano", taxa de implantação e controles na plataforma. | **Antes do deploy:** (1) criar conta no Asaas (Athos), gerar a chave da API e definir `ASAAS_API_KEY` e `ASAAS_API_URL` de **produção**; (2) cadastrar o webhook no Asaas apontando para `https://<api>/athos_adm/api/billing/asaas/webhook`, eventos de cobrança, com um token em `ASAAS_WEBHOOK_TOKEN`; (3) sem Redis, criar cron diário para `/internal/cron/billing-notices`; (4) testar primeiro no sandbox. A igreja-piloto continua isenta (não tem plano gravado). |
+| 24/11/2026 | 8 | Planos Essencial (R$ 97) e Completo (R$ 197) com teste de 30 dias, mensalidade no Mercado Pago da PhantterAI por PIX ou cartão (assinatura), webhook seguro, carência e somente leitura, avisos por e-mail, "Meu plano", taxa de implantação e controles na plataforma. | **Antes do deploy:** (1) na conta Mercado Pago da PhantterAI, criar uma aplicação e definir `MP_PLATFORM_ACCESS_TOKEN` (testar primeiro com credenciais de teste); (2) cadastrar o webhook dessa aplicação para `https://<api>/athos_adm/api/billing/mercadopago/webhook` com os tópicos Pagamentos e Planos e assinaturas, e a chave secreta em `MP_WEBHOOK_SECRET`; (3) definir `ADMIN_PANEL_URL` (retorno da página do cartão); (4) sem Redis, criar cron diário para `/internal/cron/billing-cycle`. A igreja-piloto continua isenta. |
 | 24/11/2026 | 7 | Site multi-igreja por domínio, tema por igreja, painel da plataforma (criar igreja + admin + convite), importação de membros por CSV, uso e limite de armazenamento, guia de implantação. | **Antes do deploy:** (1) no site da piloto, nada muda se `NEXT_PUBLIC_CHURCH_SLUG` estiver definido; se não estiver, cadastrar o domínio da piloto em `/plataforma` (até lá ela é a igreja padrão); (2) conferir que a piloto tem a logo cadastrada em Geral — o site passa a usar a logo do cadastro quando ela é uma URL válida; (3) incluir os domínios das igrejas novas em `CORS_ORIGINS` da API. |
 | 23/11/2026 | 6 | Rádio desligada por padrão, ativação só com aceite do termo de responsabilidade (ECAD) registrado, desativação, nova versão do termo tira do ar até novo aceite, revogação desliga. | **Atenção no deploy:** a rádio da igreja-piloto **sai do ar** até um admin aceitar o termo em Painel → Rádio (a ativação provisória da Sprint 0 não basta mais). Rodar `npm run legal:publish` antes (publica o termo) e avisar o admin para aceitar logo em seguida. |
 | 23/11/2026 | 5 | PIX real na conta da igreja via Mercado Pago, webhook seguro (consulta na API, assinatura, idempotência), confirmação automática de inscrições, conciliação e expiração, telas com confirmação automática (site e app). | **Antes do deploy:** cadastrar no painel do Mercado Pago (Webhooks da aplicação) a URL `https://<api>/athos_adm/api/payments/mercadopago/webhook`, evento "Pagamentos", e copiar a chave secreta para `MP_WEBHOOK_SECRET`; sem Redis, criar cron a cada 10–15 min chamando `/internal/cron/mercadopago-reconcile`. Fazer o teste real (5.11) com valor baixo antes de divulgar. |

@@ -87,7 +87,7 @@ const setupFeeSchema = z.object({
   dueDate: z.coerce.date().optional(),
 });
 
-// Taxa de implantação (cobrança única no Asaas).
+// Taxa de implantação (fatura PIX única na conta Mercado Pago da PhantterAI).
 router.post("/churches/:id/setup-fee", validate(setupFeeSchema), async (req, res, next) => {
   try {
     const body = req.validated?.body as z.infer<typeof setupFeeSchema>;

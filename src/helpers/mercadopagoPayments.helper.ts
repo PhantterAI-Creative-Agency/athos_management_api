@@ -27,7 +27,7 @@ function apiBase(): string {
   return process.env.MP_API_BASE_URL ?? env.MP_API_BASE_URL;
 }
 
-async function call<T>(method: "GET" | "POST", path: string, accessToken: string, body?: unknown, idempotencyKey?: string): Promise<T> {
+async function call<T>(method: "GET" | "POST" | "PUT", path: string, accessToken: string, body?: unknown, idempotencyKey?: string): Promise<T> {
   const response = await fetch(new URL(path, apiBase()), {
     method,
     headers: {
@@ -69,7 +69,11 @@ export interface CreatePixInput {
   externalReference: string;
   payerEmail: string;
   payerFirstName?: string;
+  /** CPF/CNPJ do pagador (opcional; usado nas mensalidades das igrejas, com o CNPJ do contrato). */
+  payerIdentification?: { type: "CPF" | "CNPJ"; number: string };
   expiresAt: Date;
+  /** URL de notificação própria (ex.: mensalidades); padrão: webhook das ofertas. */
+  notificationUrl?: string;
 }
 
 /**
@@ -88,12 +92,21 @@ export function createPixPayment(accessToken: string, input: CreatePixInput): Pr
       payment_method_id: "pix",
       external_reference: input.externalReference,
       date_of_expiration: formatMercadoPagoDate(input.expiresAt),
-      ...(notificationUrl() ? { notification_url: notificationUrl() } : {}),
-      payer: { email: input.payerEmail, ...(input.payerFirstName ? { first_name: input.payerFirstName } : {}) },
+      ...((input.notificationUrl ?? notificationUrl()) ? { notification_url: input.notificationUrl ?? notificationUrl() } : {}),
+      payer: {
+        email: input.payerEmail,
+        ...(input.payerFirstName ? { first_name: input.payerFirstName } : {}),
+        ...(input.payerIdentification ? { identification: input.payerIdentification } : {}),
+      },
     },
     // A própria oferta é a chave: repetir a requisição não cria cobrança duplicada.
     input.externalReference,
   );
+}
+
+/** Cancela uma cobrança ainda pendente (ex.: fatura substituída por troca de plano). */
+export function cancelPayment(accessToken: string, paymentId: string): Promise<MercadoPagoPayment> {
+  return call<MercadoPagoPayment>("PUT", `/v1/payments/${encodeURIComponent(paymentId)}`, accessToken, { status: "cancelled" });
 }
 
 export function getPayment(accessToken: string, paymentId: string): Promise<MercadoPagoPayment> {
