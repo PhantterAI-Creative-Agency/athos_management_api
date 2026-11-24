@@ -89,6 +89,11 @@ O arquivo carregado depende de `APP_ENV` (`local` → `.env.local`, `qa` → `.e
 | `MP_WEBHOOK_SECRET` | não (recomendado) | — | Chave secreta de webhooks da aplicação no Mercado Pago; valida o `x-signature` |
 | `MP_NOTIFICATION_URL` | não | derivada de `MP_REDIRECT_URI` | URL pública (https) do webhook de pagamentos |
 | `CHURCH_STORAGE_LIMIT_MB` | não | `2048` | Limite padrão de armazenamento (áudios) por igreja; ajustável por igreja em `/plataforma` |
+| `PLAN_ESSENCIAL_PRICE` / `PLAN_COMPLETO_PRICE` | não | `97` / `197` | Mensalidade de cada plano (R$) |
+| `TRIAL_DAYS` / `BILLING_GRACE_DAYS` | não | `30` / `15` | Dias de teste de uma igreja nova e de carência após o vencimento |
+| `ASAAS_API_KEY` | não (exigido para cobrar) | — | Chave da API do Asaas (conta da Athos) |
+| `ASAAS_API_URL` | não | `https://api-sandbox.asaas.com/v3` | Base da API do Asaas. **Em produção, use a URL de produção indicada no painel do Asaas** |
+| `ASAAS_WEBHOOK_TOKEN` | não (exigido para o webhook) | — | Token do webhook (32–255 caracteres, sem espaços, diferente da chave da API) |
 | `PAYMENT_WEBHOOK_SECRET` | não | — | Segredo exigido no cabeçalho `X-Webhook-Secret` do webhook de pagamentos; sem ele o webhook fica desligado |
 | `PAYMENTS_MOCK_ENABLED` | não | `false` (`true` nos testes) | Liga cobranças simuladas; **nunca** em produção |
 | `LEGAL_FORUM_CITY` | não (definir em produção) | `[CIDADE/UF DO FORO]` | Foro do Contrato |
@@ -171,7 +176,8 @@ Todos montados em `/athos_adm/api/...` (ver `src/routes/index.ts`):
 | `/auth` | Login, refresh, OAuth, logout |
 | `/users` | Criação de usuário, perfil, família, importação de membros por CSV (`POST /users/import`), exportação dos dados (`GET /users/me/export`) |
 | `/churches` | Busca e dados da igreja, recursos ligados/desligados (`/me/features`), chave PIX (`/me/pix`), aparência (`PUT /me/theme`). Criar igreja (`POST /churches`) agora exige `devAdmin` |
-| `/platform` | Painel da plataforma (`devAdmin`): criar igreja com admin e convite, domínios, limite de armazenamento e uso por igreja |
+| `/platform` | Painel da plataforma (`devAdmin`): criar igreja com admin e convite, domínios, limite de armazenamento, uso por igreja, plano/isenção/teste (`PATCH /churches/:id/billing`) e taxa de implantação (`POST /churches/:id/setup-fee`) |
+| `/billing` | Plano e mensalidade da igreja (admin): `GET /me`, `POST /subscribe`, `/change-plan`, `/cancel`; webhook do Asaas em `POST /billing/asaas/webhook` (cabeçalho `asaas-access-token`) |
 | `/legal` | Documentos legais versionados (Termos, Política, Contrato, DPA, termos de rádio e de dados sensíveis), aceites e revogações com evidência, pendências do usuário |
 | `/events` + inscrições | Eventos e inscrições (eventos pagos: PIX da igreja com confirmação manual até a integração do Mercado Pago) |
 | `/ministries` | Ministérios e voluntários (lista já vem ordenada com ministérios do usuário primeiro + flag `isVolunteer`) |
@@ -193,7 +199,7 @@ Todos montados em `/athos_adm/api/...` (ver `src/routes/index.ts`):
 | `/contact` | Formulário de contato (público, rate limited) |
 | `/public` | Endpoints públicos por slug de igreja (eventos, devocionais, mídia, ministérios) e `GET /public/church-by-host?host=` (descobre a igreja pelo domínio) |
 | `/radio` | Rádio da igreja. `GET /radio/status`, `POST /radio/activate` (aceita o termo de responsabilidade e liga) e `POST /radio/deactivate`; as demais rotas exigem rádio ligada **e** termo vigente aceito |
-| `/internal` | Endpoints de cron com `Authorization: Bearer <CRON_SECRET>`: `POST /internal/cron/mercadopago-refresh-tokens` (diário) e `POST /internal/cron/mercadopago-reconcile` (a cada 10–15 min, quando não há Redis) |
+| `/internal` | Endpoints de cron com `Authorization: Bearer <CRON_SECRET>`: `POST /internal/cron/mercadopago-refresh-tokens` (diário), `POST /internal/cron/mercadopago-reconcile` (a cada 10–15 min) e `POST /internal/cron/billing-notices` (diário) — necessários só quando não há Redis |
 
 ## Jobs (BullMQ)
 

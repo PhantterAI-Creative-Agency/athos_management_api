@@ -1,3 +1,4 @@
+import { getBillingState, planAllows } from "../helpers/plans.helper";
 import { Ad } from "../models/Ad.model";
 import { Church } from "../models/Church.model";
 import { AppError } from "../middlewares/errorHandler";
@@ -155,8 +156,9 @@ async function pickRandomActiveAd(
   placement: string,
   format: "card" | "slide",
 ): Promise<AdDTO | null> {
-  const church = await Church.findById(churchId).select("settings.adsEnabled settings.disabledAdPlacements");
-  const adsEnabled = church?.settings?.adsEnabled ?? true;
+  const church = await Church.findById(churchId).select("settings.adsEnabled settings.disabledAdPlacements subscription");
+  // Anúncios são do plano Completo (Sprint 8).
+  const adsEnabled = (church?.settings?.adsEnabled ?? true) && planAllows(getBillingState(church?.subscription).plan, "ads");
   const disabledPlacements = church?.settings?.disabledAdPlacements ?? [];
 
   if (!adsEnabled || disabledPlacements.includes(placement)) {

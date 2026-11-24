@@ -2,7 +2,7 @@
 
 **Plano:** [`PLANO_Comercializacao.md`](./PLANO_Comercializacao.md)
 **Requisitos:** [`URS_Comercializacao.md`](./URS_Comercializacao.md)
-**Última atualização:** 24/11/2026 (fim da Sprint 7)
+**Última atualização:** 24/11/2026 (fim da Sprint 8)
 
 > **Como atualizar (ao final de cada sprint):**
 > 1. Marque as tarefas concluídas com `[x]` e as parciais com `[~]`.
@@ -27,7 +27,7 @@
 | 5 | Mercado Pago: PIX e webhook | Concluída (falta o teste real) | 23/11/2026 | 23/11/2026 | 10/11 |
 | 6 | Rádio opcional com aceite | Concluída (falta o aceite da igreja-piloto) | 23/11/2026 | 23/11/2026 | 5/6 |
 | 7 | Multi-igreja: temas e onboarding | Concluída | 23/11/2026 | 24/11/2026 | 10/10 |
-| 8 | Planos comerciais e cobrança | Não iniciada | — | — | 0/7 |
+| 8 | Planos comerciais e cobrança | Concluída (falta configurar o Asaas de produção) | 24/11/2026 | 24/11/2026 | 7/7 |
 | 9 | Tesouraria | Aguardando requisitos | — | — | — |
 
 **Critérios para o primeiro cliente pagante (URS §11):** 4/6 atendidos no código (valem após o deploy).
@@ -164,13 +164,17 @@
 
 ## Sprint 8 — Planos comerciais e cobrança
 
-- [ ] 8.1 Decisão P1 (Mercado Pago Assinaturas ou Asaas)
-- [ ] 8.2 Model `Subscription`
-- [ ] 8.3 Plano → feature flags
-- [ ] 8.4 Cobrança recorrente + webhook
-- [ ] 8.5 Carência e modo somente leitura
-- [ ] 8.6 Tela "Meu plano"
-- [ ] 8.7 Taxa de implantação
+- [x] 8.1 Decisão P1: **Asaas** (recorrência por boleto e PIX; as assinaturas do Mercado Pago no Brasil são basicamente por cartão). Fica isolado em `src/helpers/asaas.helper.ts`
+- [x] 8.2 Assinatura em `Church.subscription` (plano, status, teste, período pago, carência, ids do Asaas) + `BillingInvoice` (faturas) + `BillingWebhookEvent` (deduplicação). Igreja nova: 30 dias de teste no plano escolhido. Igrejas anteriores (piloto): Completo e isentas, sem mudança
+- [x] 8.3 Plano → recursos: IA, anúncios e rádio só no Completo; PIX com confirmação automática (Mercado Pago) só no Completo; o Essencial mantém o PIX pela chave da igreja. Ligar recurso fora do plano → 402 `PLAN_UPGRADE_REQUIRED`
+- [x] 8.4 `POST /billing/subscribe` (cliente com o CNPJ do contrato aceito, assinatura mensal com 1º vencimento no fim do teste), troca de plano e cancelamento; webhook `POST /billing/asaas/webhook` com token, deduplicação por evento e **consulta do pagamento na API** antes de mudar o status
+- [x] 8.5 Carência de 15 dias após o vencimento; depois, **somente leitura**: qualquer alteração responde 402 `SUBSCRIPTION_READ_ONLY` (exceto cobrança, login, termos e direitos do titular); nenhum dado é apagado. Avisos por e-mail aos admins (teste acabando, em aberto, somente leitura, cancelada), um por mudança de estado
+- [x] 8.6 Painel → **Meu plano** (plano, situação, planos lado a lado, assinar/trocar/cancelar, faturas com link de pagamento) + faixa de aviso no topo do painel; `/plataforma` mostra plano/situação e permite trocar plano, isentar, reiniciar teste
+- [x] 8.7 Taxa de implantação: botão "Cobrar implantação" em `/plataforma` (cobrança única no Asaas, aparece nas faturas da igreja)
+
+**Validação:** suíte da API: 523 testes (19 novos). Site: build ok e fluxo no navegador contra um Asaas simulado: teste → assinar Essencial → pagamento confirmado → "Ativa" → atraso além da carência → faixa vermelha e escrita recusada (402), com "Meu plano" e "Pagar" ainda acessíveis.
+
+**A confirmar com o Asaas real:** a URL de produção (a documentação consultada só mostrava o sandbox) e se existe um campo para trocar o valor da assinatura — como não está documentado, a troca de plano encerra a assinatura antiga e cria outra no mesmo vencimento.
 
 ## Sprint 9 — Tesouraria
 
@@ -214,6 +218,10 @@
 | 23/11/2026 | 5 | O pagador precisa ter e-mail no cadastro (exigência do Mercado Pago); sem e-mail, a API pede para cadastrar. |
 | 23/11/2026 | 6 | "No ar" = flag ligada **e** termo aceito na versão vigente. Isso cumpre URS-RAD-03 mesmo para a igreja-piloto, que tinha a flag ligada provisoriamente. |
 | 23/11/2026 | 6 | Os arquivos de áudio continuam acessíveis pela URL direta de upload mesmo com a rádio desligada (o player some, mas o link do arquivo não é bloqueado). Avaliar se vale proteger `/uploads` por igreja. |
+| 24/11/2026 | 8 | **P1 decidido: Asaas** para as mensalidades. O Mercado Pago segue só para as ofertas dos membros, na conta de cada igreja. |
+| 24/11/2026 | 8 | A assinatura fica dentro da igreja (`Church.subscription`), não num model separado: o estado é calculado na hora (teste, carência, somente leitura) sem depender de rotina agendada. |
+| 24/11/2026 | 8 | Igrejas sem plano gravado (anteriores à cobrança) = Completo e isentas. A piloto não precisa de migração. |
+| 24/11/2026 | 8 | Somente leitura bloqueia alterações na API; o app mostra a mensagem de erro da API, mas ainda não tem uma faixa própria de aviso (avaliar se algum cliente sentir falta). |
 | 24/11/2026 | 7 | **P3 decidido: app único** com escolha da igreja (já era o comportamento do app). Branding por igreja no app fica fora do escopo até algum cliente pedir. |
 | 24/11/2026 | 7 | Um único site para todas as igrejas, com a igreja descoberta pelo domínio; `NEXT_PUBLIC_CHURCH_SLUG` continua disponível para quem quiser um site dedicado. |
 | 24/11/2026 | 7 | O papel `devAdmin` já existente é o "super admin" da plataforma (não foi criado um papel novo). |
@@ -225,7 +233,7 @@
 
 | # | Pendência | Prazo | Situação |
 |---|---|---|---|
-| P1 | Mercado Pago Assinaturas ou Asaas para mensalidades | Antes da Sprint 8 | Aberta |
+| P1 | Mercado Pago Assinaturas ou Asaas para mensalidades | Antes da Sprint 8 | **Decidida (24/11): Asaas** |
 | P2 | Advogado para a revisão | Sprint 1 | Aberta |
 | P3 | App único ou app com a marca de cada igreja | Antes da Sprint 7 | **Decidida (24/11): app único** |
 | P4 | Preços finais | Antes do primeiro cliente | Aberta (hipótese: R$ 300–500 + R$ 97/R$ 197) |
@@ -236,6 +244,7 @@
 | Data | Sprint | Entregue | Pendente / observações |
 |---|---|---|---|
 | 23/11/2026 | — | URS, plano e este documento de status criados. | Nenhuma sprint iniciada. |
+| 24/11/2026 | 8 | Planos Essencial (R$ 97) e Completo (R$ 197) com teste de 30 dias, cobrança recorrente no Asaas (boleto/PIX), webhook seguro, carência e somente leitura, avisos por e-mail, "Meu plano", taxa de implantação e controles na plataforma. | **Antes do deploy:** (1) criar conta no Asaas (Athos), gerar a chave da API e definir `ASAAS_API_KEY` e `ASAAS_API_URL` de **produção**; (2) cadastrar o webhook no Asaas apontando para `https://<api>/athos_adm/api/billing/asaas/webhook`, eventos de cobrança, com um token em `ASAAS_WEBHOOK_TOKEN`; (3) sem Redis, criar cron diário para `/internal/cron/billing-notices`; (4) testar primeiro no sandbox. A igreja-piloto continua isenta (não tem plano gravado). |
 | 24/11/2026 | 7 | Site multi-igreja por domínio, tema por igreja, painel da plataforma (criar igreja + admin + convite), importação de membros por CSV, uso e limite de armazenamento, guia de implantação. | **Antes do deploy:** (1) no site da piloto, nada muda se `NEXT_PUBLIC_CHURCH_SLUG` estiver definido; se não estiver, cadastrar o domínio da piloto em `/plataforma` (até lá ela é a igreja padrão); (2) conferir que a piloto tem a logo cadastrada em Geral — o site passa a usar a logo do cadastro quando ela é uma URL válida; (3) incluir os domínios das igrejas novas em `CORS_ORIGINS` da API. |
 | 23/11/2026 | 6 | Rádio desligada por padrão, ativação só com aceite do termo de responsabilidade (ECAD) registrado, desativação, nova versão do termo tira do ar até novo aceite, revogação desliga. | **Atenção no deploy:** a rádio da igreja-piloto **sai do ar** até um admin aceitar o termo em Painel → Rádio (a ativação provisória da Sprint 0 não basta mais). Rodar `npm run legal:publish` antes (publica o termo) e avisar o admin para aceitar logo em seguida. |
 | 23/11/2026 | 5 | PIX real na conta da igreja via Mercado Pago, webhook seguro (consulta na API, assinatura, idempotência), confirmação automática de inscrições, conciliação e expiração, telas com confirmação automática (site e app). | **Antes do deploy:** cadastrar no painel do Mercado Pago (Webhooks da aplicação) a URL `https://<api>/athos_adm/api/payments/mercadopago/webhook`, evento "Pagamentos", e copiar a chave secreta para `MP_WEBHOOK_SECRET`; sem Redis, criar cron a cada 10–15 min chamando `/internal/cron/mercadopago-reconcile`. Fazer o teste real (5.11) com valor baixo antes de divulgar. |

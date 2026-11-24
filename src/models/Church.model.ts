@@ -19,6 +19,21 @@ const churchSchema = new Schema(
     slug: { type: String, required: true, unique: true },
     // Domínios/subdomínios do site da igreja (sem "www."), para resolver a igreja pelo endereço.
     domains: { type: [String], default: [] },
+    // Plano e assinatura da igreja (Sprint 8). Sem `plan`: igreja anterior à cobrança, tratada como
+    // Completo e isenta (helpers/plans.helper.ts → getBillingState).
+    subscription: {
+      plan: { type: String, enum: ["essencial", "completo"] },
+      status: { type: String, enum: ["trial", "active", "past_due", "canceled"] },
+      exempt: { type: Boolean },
+      trialEndsAt: { type: Date },
+      currentPeriodEnd: { type: Date },
+      graceUntil: { type: Date },
+      billingType: { type: String, enum: ["UNDEFINED", "BOLETO", "PIX"] },
+      asaasCustomerId: { type: String },
+      asaasSubscriptionId: { type: String, index: true },
+      canceledAt: { type: Date },
+      lastNotice: { type: String },
+    },
     // Limites por igreja (Sprint 7). Sem valor, vale o padrão da plataforma.
     limits: {
       storageMb: { type: Number },

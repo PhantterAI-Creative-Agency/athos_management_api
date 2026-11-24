@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { Types } from "mongoose";
 import { env } from "../config/env";
 import { Church } from "../models/Church.model";
+import { getBillingState } from "../helpers/plans.helper";
 import { OAuthState } from "../models/OAuthState.model";
 import { PaymentAccount } from "../models/PaymentAccount.model";
 import { AppError } from "../middlewares/errorHandler";
@@ -55,6 +56,10 @@ function tokenFields(token: MercadoPagoTokenResponse) {
 /** Inicia a conexão: grava um `state` de uso único e devolve a URL de autorização. */
 export async function startConnection(churchId: string, userId: string): Promise<{ authorizationUrl: string }> {
   assertReady();
+  const church = await Church.findById(churchId).select("subscription").lean();
+  if (getBillingState(church?.subscription).plan !== "completo") {
+    throw new AppError(402, "PLAN_UPGRADE_REQUIRED", "O PIX com confirmação automática faz parte do plano Completo");
+  }
   const config = getMercadoPagoAppConfig();
   const state = crypto.randomBytes(24).toString("base64url");
   const pkce = config.usePkce ? createPkcePair() : undefined;

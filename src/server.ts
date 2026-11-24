@@ -4,6 +4,7 @@ import { env } from "./config/env";
 import { migrateLegacyJingles } from "./services/radio.service";
 import { scheduleMercadoPagoTokenRefresh } from "./jobs/mercadopagoTokenRefresh.job";
 import { scheduleMercadoPagoReconciliation } from "./jobs/mercadopagoPayment.job";
+import { scheduleBillingNotices } from "./jobs/billingNotices.job";
 
 async function bootstrap(): Promise<void> {
   await connectDB();
@@ -15,6 +16,7 @@ async function bootstrap(): Promise<void> {
   await scheduleMercadoPagoReconciliation().catch((error) =>
     console.error("Falha ao agendar a conciliação de pagamentos do Mercado Pago", error),
   );
+  await scheduleBillingNotices().catch((error) => console.error("Falha ao agendar os avisos de cobrança", error));
 
   const app = createApp();
 

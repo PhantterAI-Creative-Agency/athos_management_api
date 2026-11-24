@@ -19,13 +19,13 @@ export function requireFeature(feature: ChurchFeature) {
         return;
       }
 
-      const church = await Church.findById(req.user.churchId).select("settings").lean();
+      const church = await Church.findById(req.user.churchId).select("settings subscription").lean();
       if (!church) {
         sendError(res, 404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
         return;
       }
 
-      if (!resolveFeatures(church.settings)[feature]) {
+      if (!resolveFeatures(church.settings, church.subscription)[feature]) {
         sendError(res, 403, "FEATURE_DISABLED", DISABLED_MESSAGES[feature]);
         return;
       }

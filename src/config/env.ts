@@ -36,6 +36,16 @@ const envSchema = z.object({
   RADIO_MAX_UPLOAD_MB: z.coerce.number().positive().default(100),
   // Limite padrão de armazenamento (áudios) por igreja, em MB. Ajustável por igreja no painel da plataforma.
   CHURCH_STORAGE_LIMIT_MB: z.coerce.number().positive().default(2048),
+  // Planos e cobrança das igrejas (Sprint 8). Valores em reais.
+  PLAN_ESSENCIAL_PRICE: z.coerce.number().positive().default(97),
+  PLAN_COMPLETO_PRICE: z.coerce.number().positive().default(197),
+  TRIAL_DAYS: z.coerce.number().int().nonnegative().default(30),
+  BILLING_GRACE_DAYS: z.coerce.number().int().nonnegative().default(15),
+  // Asaas (conta da Athos) para cobrar as mensalidades. Sandbox por padrão.
+  ASAAS_API_KEY: z.string().optional(),
+  ASAAS_API_URL: z.string().default("https://api-sandbox.asaas.com/v3"),
+  // Token configurado no webhook do Asaas (cabeçalho asaas-access-token).
+  ASAAS_WEBHOOK_TOKEN: z.string().optional(),
   // Segredo exigido no cabeçalho X-Webhook-Secret do webhook de pagamentos. Sem ele, o webhook
   // fica desligado (404). Na Sprint 5 é substituído pela assinatura do Mercado Pago.
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),

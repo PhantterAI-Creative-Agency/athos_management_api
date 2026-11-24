@@ -9,6 +9,7 @@ import { isMercadoPagoConfigured } from "../helpers/mercadopago.helper";
 import { isEncryptionConfigured } from "../helpers/crypto.helper";
 import { createPixPayment, getPayment, type MercadoPagoPayment } from "../helpers/mercadopagoPayments.helper";
 import { getChurchAccessToken } from "./mercadopagoAccount.service";
+import { getBillingState } from "../helpers/plans.helper";
 
 /** Validade da cobrança PIX (o Mercado Pago aceita de 30 min a 30 dias). */
 export const PIX_EXPIRATION_MINUTES = 60;
@@ -21,11 +22,13 @@ export type PaymentMode = "mock" | "mercadopago" | "static_pix" | "unavailable";
  */
 export async function resolvePaymentMode(churchId: string): Promise<PaymentMode> {
   if (isPaymentsMockEnabled()) return "mock";
-  if (isMercadoPagoConfigured() && isEncryptionConfigured()) {
+  const church = await Church.findById(churchId).select("pix subscription").lean();
+  // PIX com confirmação automática (Mercado Pago) é do plano Completo.
+  const completo = getBillingState(church?.subscription).plan === "completo";
+  if (completo && isMercadoPagoConfigured() && isEncryptionConfigured()) {
     const connected = await PaymentAccount.exists({ churchId, status: "connected" });
     if (connected) return "mercadopago";
   }
-  const church = await Church.findById(churchId).select("pix").lean();
   return church?.pix ? "static_pix" : "unavailable";
 }
 

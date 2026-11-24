@@ -9,6 +9,13 @@ import { PaymentAccount } from "../models/PaymentAccount.model";
 import { AppError } from "../middlewares/errorHandler";
 import { normalizeHost } from "../helpers/theme.helper";
 import { enqueueAdminInviteEmail } from "../jobs/adminInviteEmail.job";
+import { getBillingState, type PlanId, type StoredSubscription } from "../helpers/plans.helper";
+import { initialSubscription } from "./billing.service";
+
+function billingSummary(subscription?: StoredSubscription | null) {
+  const state = getBillingState(subscription);
+  return { plan: state.plan, status: state.status, exempt: state.exempt, access: state.access, accessUntil: state.accessUntil?.toISOString() };
+}
 
 function slugify(value: string): string {
   return value
@@ -37,6 +44,7 @@ export interface PlatformChurchDTO {
   domains: string[];
   createdAt: string;
   usage: ChurchUsageDTO;
+  billing: { plan: PlanId; status: string; exempt: boolean; access: string; accessUntil?: string };
 }
 
 export function storageLimitBytes(church: { limits?: { storageMb?: number | null } | null }): number {
@@ -80,7 +88,7 @@ export async function getChurchUsage(churchId: string): Promise<ChurchUsageDTO> 
 }
 
 export async function listPlatformChurches(): Promise<PlatformChurchDTO[]> {
-  const churches = await Church.find().select("name slug domains createdAt").sort({ createdAt: -1 }).lean();
+  const churches = await Church.find().select("name slug domains createdAt subscription").sort({ createdAt: -1 }).lean();
   return Promise.all(
     churches.map(async (church) => ({
       id: String(church._id),
@@ -89,6 +97,7 @@ export async function listPlatformChurches(): Promise<PlatformChurchDTO[]> {
       domains: church.domains ?? [],
       createdAt: church.createdAt.toISOString(),
       usage: await getChurchUsage(String(church._id)),
+      billing: billingSummary(church.subscription),
     })),
   );
 }
@@ -112,6 +121,8 @@ export interface CreateChurchInput {
   logoUrl?: string;
   domains?: string[];
   storageMb?: number;
+  plan?: PlanId;
+  exempt?: boolean;
   admin: { name: string; email: string };
 }
 
@@ -136,6 +147,8 @@ export async function createChurchWithAdmin(input: CreateChurchInput): Promise<{
     logoUrl: input.logoUrl || "none",
     domains,
     ...(input.storageMb ? { limits: { storageMb: input.storageMb } } : {}),
+    // Igreja nova começa em teste no plano escolhido (Sprint 8).
+    subscription: initialSubscription(input.plan ?? "essencial", input.exempt ?? false),
   });
 
   let admin;
@@ -168,6 +181,7 @@ export async function createChurchWithAdmin(input: CreateChurchInput): Promise<{
       domains: church.domains ?? [],
       createdAt: church.createdAt.toISOString(),
       usage: await getChurchUsage(String(church._id)),
+      billing: billingSummary(church.subscription),
     },
     adminId: String(admin._id),
   };
@@ -189,5 +203,6 @@ export async function updatePlatformChurch(
     domains: church.domains ?? [],
     createdAt: church.createdAt.toISOString(),
     usage: await getChurchUsage(String(church._id)),
+    billing: billingSummary(church.subscription),
   };
 }

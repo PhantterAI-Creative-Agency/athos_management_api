@@ -1,3 +1,4 @@
+import { getBillingState, planAllows, type StoredSubscription } from "./plans.helper";
 export const CHURCH_FEATURES = ["radio", "ads", "aiAssistant", "onlineOfferings"] as const;
 
 export type ChurchFeature = (typeof CHURCH_FEATURES)[number];
@@ -22,15 +23,26 @@ interface SettingsWithFeatures {
   features?: ChurchFeatureSettings | null;
 }
 
-/** Estado efetivo de cada recurso. "ads" é lido de `settings.adsEnabled` (campo legado). */
-export function resolveFeatures(settings?: SettingsWithFeatures | null): Record<ChurchFeature, boolean> {
+/**
+ * Estado efetivo de cada recurso: ligado nas configurações **e** incluído no plano da igreja
+ * (Sprint 8). "ads" é lido de `settings.adsEnabled` (campo legado). Sem assinatura gravada, a
+ * igreja é tratada como plano Completo (igrejas anteriores à cobrança).
+ */
+export function resolveFeatures(
+  settings?: SettingsWithFeatures | null,
+  subscription?: StoredSubscription | null,
+): Record<ChurchFeature, boolean> {
   const features = settings?.features ?? {};
-  return {
+  const plan = getBillingState(subscription).plan;
+  const raw: Record<ChurchFeature, boolean> = {
     radio: features.radio ?? FEATURE_DEFAULTS.radio,
     ads: settings?.adsEnabled ?? FEATURE_DEFAULTS.ads,
     aiAssistant: features.aiAssistant ?? FEATURE_DEFAULTS.aiAssistant,
     onlineOfferings: features.onlineOfferings ?? FEATURE_DEFAULTS.onlineOfferings,
   };
+  return Object.fromEntries(
+    CHURCH_FEATURES.map((feature) => [feature, raw[feature] && planAllows(plan, feature)]),
+  ) as Record<ChurchFeature, boolean>;
 }
 
 /** Caminho no documento Church onde o recurso é gravado. */

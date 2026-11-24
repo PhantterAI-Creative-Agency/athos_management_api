@@ -20,6 +20,7 @@ import type {
 } from "../interfaces/church.interface";
 import { hasActiveAcceptance } from "./legal.service";
 import { normalizeHost, resolveTheme, type ThemeSettings } from "../helpers/theme.helper";
+import { getBillingState, planAllows, type StoredSubscription } from "../helpers/plans.helper";
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -61,6 +62,7 @@ function toChurchDTO(church: {
     features?: ChurchFeatureSettings | null;
     theme?: ThemeSettings | null;
   } | null;
+  subscription?: StoredSubscription | null;
   domains?: string[] | null;
   homeContent?: {
     intro?: string | null;
@@ -118,7 +120,7 @@ function toChurchDTO(church: {
       growthGroupAcronym: church.settings?.growthGroupAcronym ?? "GC",
       adsEnabled: church.settings?.adsEnabled ?? true,
       disabledAdPlacements: church.settings?.disabledAdPlacements ?? [],
-      features: resolveFeatures(church.settings),
+      features: resolveFeatures(church.settings, church.subscription),
       theme: resolveTheme(church.settings?.theme),
     },
     domains: church.domains ?? [],
@@ -288,13 +290,13 @@ export async function updateChurch(
 }
 
 export async function getChurchFeatures(churchId: string): Promise<Record<ChurchFeature, boolean>> {
-  const church = await Church.findById(churchId).select("settings").lean();
+  const church = await Church.findById(churchId).select("settings subscription").lean();
 
   if (!church) {
     throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
   }
 
-  return resolveFeatures(church.settings);
+  return resolveFeatures(church.settings, church.subscription);
 }
 
 export async function updateChurchFeatures(
@@ -307,8 +309,16 @@ export async function updateChurchFeatures(
     throw new AppError(404, "CHURCH_NOT_FOUND", "Igreja não encontrada");
   }
 
+  // Recursos do plano Completo não ligam no Essencial (URS-COB-02).
+  const plan = getBillingState(church.subscription).plan;
+  for (const feature of CHURCH_FEATURES) {
+    if (data[feature] === true && !planAllows(plan, feature)) {
+      throw new AppError(402, "PLAN_UPGRADE_REQUIRED", "Este recurso faz parte do plano Completo");
+    }
+  }
+
   // A rádio só liga com o aceite vigente do termo de responsabilidade (direitos autorais/ECAD).
-  if (data.radio === true && !resolveFeatures(church.settings).radio) {
+  if (data.radio === true && !resolveFeatures(church.settings, church.subscription).radio) {
     const accepted = await hasActiveAcceptance({ type: "radio_liability", churchId });
     if (!accepted) {
       throw new AppError(
@@ -326,7 +336,7 @@ export async function updateChurchFeatures(
 
   await church.save();
 
-  return resolveFeatures(church.settings);
+  return resolveFeatures(church.settings, church.subscription);
 }
 
 export async function updateChurchTheme(churchId: string, data: UpdateChurchThemeDTO): Promise<ChurchDTO> {

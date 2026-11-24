@@ -65,6 +65,7 @@ describe("Criação de igreja pela plataforma", () => {
         name: "Igreja Esperança Viva",
         domains: ["https://www.EsperancaViva.org.br/", "esperanca.athos.app"],
         storageMb: 1,
+        plan: "completo",
         admin: { name: "Pr. Carlos", email: "Carlos@EsperancaViva.org.br" },
       });
     expect(res.status).toBe(201);
